@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="/icon.png?v=1.3">
+<link rel="icon" href="/icon.png?v=1.4">
 <style>
   :root {
     --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
@@ -82,6 +82,8 @@
   .reading-item p { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
   .planet-details { margin-top: 10px; }
   .planet-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .report-title { color: var(--gold2); font-size: 19px; margin: 6px 4px 10px; }
+  .report-part h2 small { font-size: 12px; color: var(--muted); font-weight: normal; margin-left: 6px; }
   .analysis { font-size: 15px; }
   .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
   .analysis h3:first-child { margin-top: 0; }
@@ -117,7 +119,7 @@
 <body>
 <div class="app">
   <header>
-    <img src="/icon.png?v=1.3" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="/icon.png?v=1.4" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
@@ -174,9 +176,9 @@
       </div>
     </div>
 
-    <div class="card" id="result" hidden>
-      <h2 id="result-title">🕵️ 부엉의 수사 보고서</h2>
-      <div class="analysis" id="result-body"></div>
+    <div id="result" hidden>
+      <h2 class="report-title" id="result-title">🕵️ 부엉의 수사 보고서</h2>
+      <div id="result-body"></div>
     </div>
   </section>
 
@@ -245,6 +247,7 @@
 <script type="module">
 import { SIGNS, computeChart, localToDate, norm } from '/astro.js';
 import { readChart } from '/reading.js';
+import { parseReport } from '/report.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -425,7 +428,7 @@ function planetTable(chart) {
 
 function readingBlock(chart) {
   const items = readChart(chart).map((r) => `<div class="reading-item"><span class="reading-icon">${esc(r.icon)}${r.icon.codePointAt(0) > 0xffff ? '' : TEXT_GLYPH}</span><div><b>${esc(r.title)}</b><p>${esc(r.text)}</p></div></div>`);
-  return `<div class="reading"><h3>🔮 하늘 풀이</h3>${items.join('')}<p class="hint">별자리는 미래를 맞히는 예언이 아니라, 그날 밤 마음의 분위기를 비추는 거울로 봐 주세요.</p></div>`;
+  return `<div class="reading"><h3>📖 기본 하늘 풀이</h3>${items.join('')}<p class="hint">별자리는 미래를 맞히는 예언이 아니라, 그날 밤 마음의 분위기를 비추는 거울로 봐 주세요.</p></div>`;
 }
 
 function chartBlock(chart) {
@@ -464,8 +467,11 @@ $('def-city').onchange = () => { $('def-custom').hidden = $('def-city').value !=
 for (const id of ['when', 'tz', 'lat', 'lon']) $(id).addEventListener('input', updatePreview);
 $('now').onclick = () => { $('when').value = localNow(); updatePreview(); };
 
-async function streamInto(path, bodyEl, onDone) {
-  bodyEl.innerHTML = '<p class="thinking">부엉 탐정이 단서를 모으고 있어요… (30초~1분쯤 걸려요)</p>';
+const THINKING = '<p class="thinking">부엉 탐정이 단서를 모으고 있어요… (30초~1분쯤 걸려요)</p>';
+const WRITING = '<p class="thinking">계속 쓰는 중…</p>';
+
+// 서버에서 글을 받아 오며, 받을 때마다 onText(지금까지의 글) 호출. 끝나면 전체 글을 돌려줌
+async function streamText(path, onText) {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -479,14 +485,32 @@ async function streamInto(path, bodyEl, onDone) {
     if (done) break;
     text += decoder.decode(value, { stream: true });
     const errAt = text.indexOf('\u0000');
-    const shown = visiblePart(errAt >= 0 ? text.slice(0, errAt) : text);
-    if (shown.trim()) bodyEl.innerHTML = renderMarkdown(shown) + (errAt >= 0 ? '' : '<p class="thinking">계속 쓰는 중…</p>');
+    if (errAt >= 0) throw new Error(text.slice(errAt + 1));
+    onText(text);
   }
   text += decoder.decode();
   const errAt = text.indexOf('\u0000');
   if (errAt >= 0) throw new Error(text.slice(errAt + 1));
-  bodyEl.innerHTML = renderMarkdown(visiblePart(text));
-  await onDone?.();
+  return text;
+}
+
+// 수사 보고서: 분석심리학 풀이와 천궁도 풀이를 따로따로 보여 줌
+// streaming 이면 Claude 가 아직 쓰는 중: 지금 쓰고 있는 칸에만 "쓰는 중" 표시
+function reportHtml({ psych, sky }, streaming = false) {
+  const card = (icon, title, sub, inner) => `<div class="card report-part"><h2>${icon} ${title}<small>${sub}</small></h2><div class="analysis">${inner}</div></div>`;
+  let psychInner = psych ? renderMarkdown(psych) : (streaming ? THINKING : '');
+  if (streaming && psych && !sky) psychInner += WRITING;
+  let skyInner;
+  if (sky) skyInner = renderMarkdown(sky) + (streaming ? WRITING : '');
+  else if (streaming) skyInner = '<p class="hint">분석심리학 풀이를 다 쓰면 이어서 쓸게요.</p>';
+  else skyInner = '<p class="hint">이 꿈은 예전 방식으로 분석해서 천궁도 풀이가 따로 없어요. [🔁 다시 분석]을 누르면 생겨요.</p>';
+  return card('🌗', '분석심리학 풀이', '융의 눈으로 본 마음', psychInner) + card('🔮', '천궁도 풀이', '꿈꾼 순간의 하늘과 꿈', skyInner);
+}
+
+async function streamReport(path, bodyEl) {
+  bodyEl.innerHTML = reportHtml({ psych: '', sky: '' }, true);
+  const text = await streamText(path, (t) => { bodyEl.innerHTML = reportHtml(parseReport(t), true); });
+  bodyEl.innerHTML = reportHtml(parseReport(text));
 }
 
 async function saveDream() {
@@ -534,12 +558,11 @@ $('investigate').onclick = async () => {
     $('result-title').textContent = '🕵️ 부엉의 수사 보고서';
     say('부엉! 수사를 시작합니다. 🔎');
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    await streamInto(`/api/dreams/${dream.id}/analyze`, $('result-body'), async () => {
-      await loadDreams();
-      const saved = dreams.find((d) => d.id === dream.id);
-      if (saved?.title) $('result-title').textContent = `🕵️ 사건 파일: 「${saved.title}」`;
-      say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
-    });
+    await streamReport(`/api/dreams/${dream.id}/analyze`, $('result-body'));
+    await loadDreams();
+    const saved = dreams.find((d) => d.id === dream.id);
+    if (saved?.title) $('result-title').textContent = `🕵️ 사건 파일: 「${saved.title}」`;
+    say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
   } catch (err) {
     showMsg($('write-msg'), err.message + (dream ? ' (꿈 내용은 일기에 저장되어 있어요.)' : ''), 'err');
     if (dream) { $('result').hidden = true; await loadDreams(); }
@@ -595,7 +618,8 @@ function openDream(id) {
       </div>
       <div class="card"><h2>✨ 꿈꾼 순간의 하늘</h2>${chartBlock(d.chart)}</div>
     </div>
-    <div class="card"><h2>🕵️ 부엉의 수사 보고서</h2><div class="analysis" id="detail-body">${d.analysis ? renderMarkdown(d.analysis) : '<p class="hint">아직 분석 전이에요.</p>'}</div></div>`;
+    <h2 class="report-title">🕵️ 부엉의 수사 보고서</h2>
+    <div id="detail-body">${d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '<div class="card"><p class="hint">아직 분석 전이에요. [🔍 부엉에게 맡기기]를 눌러 주세요.</p></div>'}</div>`;
   $('back').onclick = closeDream;
   $('del').onclick = async () => {
     if (!confirm('이 꿈 기록을 지울까요? 지우면 되돌릴 수 없어요.')) return;
@@ -607,10 +631,12 @@ function openDream(id) {
     btn.disabled = true;
     showMsg($('detail-msg'), '');
     try {
-      await streamInto(`/api/dreams/${id}/analyze`, $('detail-body'), async () => { await loadDreams(); openDream(id); });
+      await streamReport(`/api/dreams/${id}/analyze`, $('detail-body'));
+      await loadDreams();
+      openDream(id);
     } catch (err) {
       showMsg($('detail-msg'), err.message, 'err');
-      $('detail-body').innerHTML = d.analysis ? renderMarkdown(d.analysis) : '';
+      $('detail-body').innerHTML = d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '';
       btn.disabled = false;
     }
   };
@@ -645,7 +671,9 @@ $('pattern-go').onclick = async () => {
   showMsg($('pattern-msg'), '');
   try {
     $('pattern-body').dataset.fresh = '1';
-    await streamInto('/api/patterns', $('pattern-body'));
+    $('pattern-body').innerHTML = THINKING;
+    const text = await streamText('/api/patterns', (t) => { $('pattern-body').innerHTML = renderMarkdown(visiblePart(t)) + WRITING; });
+    $('pattern-body').innerHTML = renderMarkdown(visiblePart(text));
     say('꿈들 사이의 연결고리를 찾아냈어요! 🧵');
   } catch (err) {
     showMsg($('pattern-msg'), err.message, 'err');

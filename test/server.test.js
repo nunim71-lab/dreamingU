@@ -21,6 +21,7 @@ test('serves the page, the shared chart code and status', async () => {
   await withServer({}, async (base) => {
     assert.match(await (await fetch(base + '/')).text(), /꿈탐정 부엉/);
     assert.match(await (await fetch(base + '/astro.js')).text(), /export function computeChart/);
+    assert.match(await (await fetch(base + '/report.js')).text(), /export function parseReport/);
     const status = await (await fetch(base + '/api/status')).json();
     assert.equal(status.hasKey, false);
     assert.equal(status.tzOffset, 9);
@@ -29,11 +30,12 @@ test('serves the page, the shared chart code and status', async () => {
 
 test('records a dream with its chart, analyzes it and saves the result', async () => {
   let asked;
+  const REPORT = '<분석심리학>\n## 🔍 꿈 한눈에 보기\n날아올랐어요.\n</분석심리학>\n<천궁도>\n## 🌙 그날 밤의 달\n달이 밝았어요.\n</천궁도>\n<제목>하늘 산책</제목>\n<키워드>하늘, 날기</키워드>';
   const ask = async (args) => {
     asked = args;
-    args.onText('## 🔍 사건 개요\n날아올랐어요.');
-    args.onText('\n<제목>하늘 산책</제목>\n<키워드>하늘, 날기</키워드>');
-    return '## 🔍 사건 개요\n날아올랐어요.\n<제목>하늘 산책</제목>\n<키워드>하늘, 날기</키워드>';
+    args.onText(REPORT.slice(0, 40));
+    args.onText(REPORT.slice(40));
+    return REPORT;
   };
   await withServer({ ask }, async (base, dataDir) => {
     const noKey = await json(base, '/api/dreams', DREAM);
@@ -61,7 +63,8 @@ test('records a dream with its chart, analyzes it and saves the result', async (
     const { dreams } = await (await fetch(base + '/api/dreams')).json();
     assert.equal(dreams[0].title, '하늘 산책');
     assert.deepEqual(dreams[0].keywords, ['하늘', '날기']);
-    assert.equal(dreams[0].analysis, '## 🔍 사건 개요\n날아올랐어요.');
+    assert.equal(dreams[0].analysis, '## 🔍 꿈 한눈에 보기\n날아올랐어요.');
+    assert.equal(dreams[0].skyAnalysis, '## 🌙 그날 밤의 달\n달이 밝았어요.');
 
     const saved = JSON.parse(await readFile(path.join(dataDir, 'dreams.json'), 'utf8'));
     assert.equal(saved[0].title, '하늘 산책');

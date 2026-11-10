@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askClaude, buildDreamPrompt, splitAnalysis } from '../src/claude.js';
+import { DETECTIVE_SYSTEM, askClaude, buildDreamPrompt, parseReport } from '../src/claude.js';
 import { computeChart } from '../src/astro.js';
 
 const sse = (events) => {
@@ -41,12 +41,35 @@ test('turns API errors and refusals into friendly Korean messages', async () => 
   await assert.rejects(askClaude({ apiKey: 'k', system: '', prompt: '', fetchImpl: refusal }), /사양/);
 });
 
-test('splitAnalysis pulls out the title and keywords', () => {
-  const r = splitAnalysis('## 🔍 사건 개요\n본문입니다.\n\n<제목>끝없는 계단</제목>\n<키워드>계단, 물, #어머니, 물</키워드>');
-  assert.equal(r.body, '## 🔍 사건 개요\n본문입니다.');
+const FULL = '<분석심리학>\n## 🔍 꿈 한눈에 보기\n계단을 내려가는 꿈이에요.\n</분석심리학>\n<천궁도>\n## 🌙 그날 밤의 달\n달이 물고기자리에 있었어요.\n</천궁도>\n<제목>끝없는 계단</제목>\n<키워드>계단, 물, #어머니, 물</키워드>';
+
+test('parseReport splits the psychology and chart readings apart', () => {
+  const r = parseReport(FULL);
+  assert.equal(r.psych, '## 🔍 꿈 한눈에 보기\n계단을 내려가는 꿈이에요.');
+  assert.equal(r.sky, '## 🌙 그날 밤의 달\n달이 물고기자리에 있었어요.');
   assert.equal(r.title, '끝없는 계단');
   assert.deepEqual(r.keywords, ['계단', '물', '어머니']);
-  assert.deepEqual(splitAnalysis('그냥 글').keywords, []);
+});
+
+test('parseReport works on half-written text while streaming', () => {
+  // 글이 한 글자씩 올 때마다 나눠 봐도 꼬리표가 화면에 새어 나오지 않아야 함
+  for (let i = 0; i <= FULL.length; i++) {
+    const r = parseReport(FULL.slice(0, i));
+    assert.ok(!/[<>]/.test(r.psych + r.sky), `at ${i}: ${JSON.stringify(r)}`);
+  }
+  const mid = parseReport(FULL.slice(0, FULL.indexOf('</분석심리학>') + 3));
+  assert.equal(mid.psych, '## 🔍 꿈 한눈에 보기\n계단을 내려가는 꿈이에요.');
+  assert.equal(mid.sky, '');
+});
+
+test('parseReport keeps untagged text as the psychology reading', () => {
+  assert.deepEqual(parseReport('그냥 글\n<제목>이름</제목>'), { psych: '그냥 글', sky: '', title: '이름', keywords: [] });
+});
+
+test('the detective is told to write plainly and keep the two readings apart', () => {
+  assert.match(DETECTIVE_SYSTEM, /쉬운 말/);
+  assert.match(DETECTIVE_SYSTEM, /<분석심리학>[\s\S]*<\/분석심리학>[\s\S]*<천궁도>[\s\S]*<\/천궁도>/);
+  assert.match(DETECTIVE_SYSTEM, /별자리 이야기는 여기에 넣지 않습니다/);
 });
 
 test('dream prompt includes the dream, moods, chart and recent dreams', () => {

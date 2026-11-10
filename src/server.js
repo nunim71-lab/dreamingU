@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeChart, localToDate } from './astro.js';
-import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPatternPrompt, splitAnalysis } from './claude.js';
+import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPatternPrompt, parseReport } from './claude.js';
 import { createStore } from './store.js';
 
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -24,6 +24,7 @@ const FILES = {
   '/icon.png': ['icon.png', 'image/png'],
   '/astro.js': ['../src/astro.js', 'text/javascript; charset=utf-8'],
   '/reading.js': ['../src/reading.js', 'text/javascript; charset=utf-8'],
+  '/report.js': ['../src/report.js', 'text/javascript; charset=utf-8'],
 };
 
 class RequestError extends Error {
@@ -191,6 +192,7 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
           title: '',
           keywords: [],
           analysis: '',
+          skyAnalysis: '',
         };
         dreams.push(dream);
         sortDreams();
@@ -211,8 +213,8 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         const dream = findDream(m[1]);
         if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. ⚙️ 설정에서 먼저 넣어 주세요.');
         return stream(res, DETECTIVE_SYSTEM, buildDreamPrompt(dream, dreams), async (text) => {
-          const { body, title, keywords } = splitAnalysis(text);
-          Object.assign(dream, { analysis: body, title: title || dream.title, keywords: keywords.length ? keywords : dream.keywords, analyzedAt: new Date().toISOString() });
+          const { psych, sky, title, keywords } = parseReport(text);
+          Object.assign(dream, { analysis: psych, skyAnalysis: sky, title: title || dream.title, keywords: keywords.length ? keywords : dream.keywords, analyzedAt: new Date().toISOString() });
           await store.saveDreams(dreams);
         });
       }
