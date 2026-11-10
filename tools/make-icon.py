@@ -1,5 +1,5 @@
-# 꿈탐정 몽록 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico public/icon.png
-# 밤하늘 앞의 신비로운 하얀 부엉이: 은빛 깃털, 금빛으로 빛나는 눈, 이마의 작은 별, 뒤에는 초승달과 별빛.
+# 꿈탐정 부엉 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico public/icon.png
+# 밤하늘 앞의 신비로운 하얀 부엉이: 황금 망토, 은빛 깃털, 금빛으로 빛나는 눈, 이마의 작은 별, 뒤에는 초승달과 별빛.
 # 흰 스티커 테두리로 어떤 바탕화면에서도 잘 보이게 함.
 import sys, math, random
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
@@ -84,6 +84,34 @@ def specks(d):
             d.arc(P(x - 16, y - 9, x + 16, y + 9), 25, 155, fill=SPECK, width=int(6 * k))
 draw(specks)
 draw(lambda d: [d.ellipse(P(430, 895, 480, 925), fill=SHADE2), d.ellipse(P(544, 895, 594, 925), fill=SHADE2)])  # 발
+
+# 황금 망토: 어깨를 감싸고 앞이 열려 하얀 가슴이 보임, 높은 깃과 보석 단추
+CAPE = (236, 178, 52, 255)
+CAPE_LIGHT = (255, 222, 120, 255)
+CAPE_DARK = (176, 116, 26, 255)
+glow(512, 740, 270, CAPE, 60, 40)
+collar = layer(); cd = ImageDraw.Draw(collar)
+cd.polygon([tuple(P(300, 610)), tuple(P(250, 455)), tuple(P(400, 585))], fill=CAPE_DARK)
+cd.polygon([tuple(P(724, 610)), tuple(P(774, 455)), tuple(P(624, 585))], fill=CAPE_DARK)
+comp(collar)
+c = layer(); ImageDraw.Draw(c).ellipse(P(262, 545, 762, 905), fill=CAPE)
+opening = layer(); od = ImageDraw.Draw(opening)
+od.ellipse(P(400, 600, 624, 1000), fill=(255, 255, 255, 255))
+od.polygon([tuple(P(470, 600)), tuple(P(554, 600)), tuple(P(512, 560))], fill=(255, 255, 255, 255))
+c = Image.composite(layer(), c, opening.split()[3]); comp(c)
+def cape_folds(d):
+    for x0, x1 in ((320, 300), (370, 350), (654, 674), (704, 724)):
+        d.line(P(x0 + (12 if x0 < 512 else -12), 640, x1, 870), fill=CAPE_DARK, width=int(9 * k))
+    d.arc(P(266, 549, 758, 901), 20, 160, fill=CAPE_DARK, width=int(12 * k))     # 밑단 그림자
+    d.arc(P(274, 556, 750, 897), 205, 255, fill=CAPE_LIGHT, width=int(10 * k))   # 왼쪽 어깨 빛
+    d.arc(P(274, 556, 750, 897), 285, 335, fill=CAPE_LIGHT, width=int(10 * k))   # 오른쪽 어깨 빛
+    d.arc(P(400, 600, 624, 1000), 180, 360, fill=CAPE_LIGHT, width=int(8 * k))   # 앞섶 테두리
+draw(cape_folds)
+# 망토 끈과 보랏빛 보석 단추
+draw(lambda d: [d.line(P(452, 640, 512, 662), fill=CAPE_LIGHT, width=int(8 * k)), d.line(P(572, 640, 512, 662), fill=CAPE_LIGHT, width=int(8 * k))])
+glow(512, 664, 26, VIOLET, 160, 10)
+draw(lambda d: [d.ellipse(P(494, 646, 530, 682), fill=CAPE_DARK), d.ellipse(P(499, 651, 525, 677), fill=VIOLET),
+                d.ellipse(P(504, 655, 512, 663), fill=(255, 255, 255, 230))])
 
 # 머리 + 귀깃(부엉이의 뾰족한 귀)
 draw(lambda d: [d.polygon([tuple(P(330, 380)), tuple(P(300, 230)), tuple(P(420, 330))], fill=WHITE),

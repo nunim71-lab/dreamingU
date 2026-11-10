@@ -19,7 +19,7 @@ const DREAM = { text: '하늘을 나는 꿈', moods: ['🤩 신기함'], dreamAt
 
 test('serves the page, the shared chart code and status', async () => {
   await withServer({}, async (base) => {
-    assert.match(await (await fetch(base + '/')).text(), /꿈탐정 몽록/);
+    assert.match(await (await fetch(base + '/')).text(), /꿈탐정 부엉/);
     assert.match(await (await fetch(base + '/astro.js')).text(), /export function computeChart/);
     const status = await (await fetch(base + '/api/status')).json();
     assert.equal(status.hasKey, false);

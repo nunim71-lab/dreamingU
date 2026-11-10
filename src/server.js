@@ -276,7 +276,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
   });
   server.listen(port, host, () => {
-    console.log(`꿈탐정 몽록 (빌드 ${BUILD}) 실행 중: ${address}`);
+    console.log(`꿈탐정 부엉 (빌드 ${BUILD}) 실행 중: ${address}`);
     console.log('이 창을 닫으면 꿈탐정도 꺼집니다.');
     openBrowser(address);
   });
