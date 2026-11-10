@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>꿈탐정 몽록</title>
+<link rel="icon" href="/icon.png?v=1.0">
+<style>
+  :root {
+    --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
+    --text: #ece9ff; --muted: #a8a4d8; --gold: #f3c96b; --gold2: #ffe3a3;
+    --violet: #9c8cff; --red: #ff7b8a; --blue: #7cc4ff; --green: #8be0b0;
+    --font: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--font); color: var(--text); font-size: 15px; line-height: 1.6;
+    background: var(--bg) radial-gradient(ellipse 1200px 700px at 70% -10%, #2a2f72 0%, transparent 70%) no-repeat;
+    min-height: 100vh;
+  }
+  body::before { /* 반짝이는 별 */
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .55;
+    background-image:
+      radial-gradient(1.2px 1.2px at 12% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 33% 72%, #fff 50%, transparent 51%),
+      radial-gradient(1.4px 1.4px at 58% 28%, #ffe9b0 50%, transparent 51%),
+      radial-gradient(1px 1px at 81% 63%, #fff 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 91% 12%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 46% 92%, #cfc8ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 6% 84%, #fff 50%, transparent 51%);
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .app { position: relative; max-width: 1080px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  header img { width: 56px; height: 56px; cursor: pointer; filter: drop-shadow(0 4px 10px #0008); }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+  header h1 small { font-size: 12px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+  .bubble { margin-left: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px; color: var(--gold2); font-size: 14px; max-width: 420px; }
+  nav { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  nav button { background: var(--bg2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; cursor: pointer; color: var(--muted); }
+  nav button.on { background: var(--gold); color: #241b00; border-color: var(--gold); font-weight: bold; }
+  .card { background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 12px; font-size: 17px; color: var(--gold2); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 14px; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } .bubble { display: none; } nav button { padding: 6px 12px; font-size: 14px; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  textarea, input[type=text], input[type=password], input[type=number], input[type=datetime-local], select {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none;
+  }
+  textarea:focus, input:focus, select:focus { border-color: var(--violet); }
+  textarea { resize: vertical; min-height: 180px; }
+  #note { min-height: 70px; }
+  input[type=datetime-local] { color-scheme: dark; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+  .row > button { flex: 0 0 auto; min-width: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 14px; }
+  .chip.on { background: var(--violet); border-color: var(--violet); color: #fff; }
+  .btn { background: var(--gold); color: #241b00; border: 0; border-radius: 12px; padding: 11px 18px; font-weight: bold; cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: normal; }
+  .btn.danger { background: transparent; color: var(--red); border: 1px solid #6a2c3c; font-weight: normal; }
+  .btn.small { padding: 6px 12px; font-size: 13px; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .msg { margin-top: 10px; font-size: 14px; }
+  .msg.err { color: var(--red); }
+  .msg.ok { color: var(--green); }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart-meta { text-align: center; color: var(--muted); font-size: 13px; margin-top: 6px; }
+  table.planets { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  table.planets td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
+  table.planets td:first-child { color: var(--gold2); white-space: nowrap; }
+  .analysis { font-size: 15px; }
+  .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
+  .analysis h3:first-child { margin-top: 0; }
+  .analysis h4 { margin: 12px 0 4px; font-size: 15px; }
+  .analysis p { margin: 6px 0; }
+  .analysis ul, .analysis ol { margin: 6px 0; padding-left: 22px; }
+  .analysis strong { color: var(--gold2); }
+  .thinking { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .thinking::before { content: "🔎"; display: inline-block; animation: search 1.4s ease-in-out infinite; }
+  @keyframes search { 0%,100% { transform: translate(0,0) rotate(-10deg); } 50% { transform: translate(6px,-3px) rotate(10deg); } }
+  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .dream { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; cursor: pointer; text-align: left; }
+  .dream:hover { border-color: var(--gold); }
+  .dream .date { font-size: 12px; color: var(--muted); }
+  .dream .title { font-weight: bold; margin: 2px 0 4px; color: var(--gold2); }
+  .dream .preview { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .tag { font-size: 12px; background: #2a2f66; border-radius: 6px; padding: 1px 7px; color: #d9d4ff; }
+  .dream-text { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line); }
+  .bars { display: grid; gap: 6px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 36px; gap: 8px; align-items: center; font-size: 14px; }
+  .bar .track { background: var(--bg); border-radius: 6px; height: 14px; overflow: hidden; }
+  .bar .fill { background: linear-gradient(90deg, var(--violet), var(--gold)); height: 100%; border-radius: 6px; }
+  .bar .n { text-align: right; color: var(--muted); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .big { font-size: 28px; color: var(--gold); font-weight: bold; }
+  [hidden] { display: none !important; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 24px; }
+  a { color: var(--gold2); }
+  ol.steps { padding-left: 20px; margin: 6px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <img src="/icon.png?v=1.0" alt="몽록" id="owl" title="몽록을 눌러 보세요">
+    <h1>꿈탐정 몽록 <small id="build"></small></h1>
+    <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
+  </header>
+
+  <nav>
+    <button data-tab="write" class="on">✍️ 꿈 기록</button>
+    <button data-tab="diary">📔 꿈 일기</button>
+    <button data-tab="pattern">🔁 꿈 패턴</button>
+    <button data-tab="settings">⚙️ 설정</button>
+  </nav>
+
+  <!-- 꿈 기록 -->
+  <section id="tab-write">
+    <div class="grid">
+      <div class="card">
+        <h2>🌙 오늘의 꿈 사건</h2>
+        <label for="text">꿈 내용 (생각나는 대로, 장면·사람·색깔·소리까지)</label>
+        <textarea id="text" placeholder="예) 어릴 때 살던 집 계단을 내려가는데 끝이 보이지 않았어요. 아래에서 물소리가 들렸고…"></textarea>
+
+        <label>꿈꾼 시간</label>
+        <div class="row">
+          <input type="datetime-local" id="when">
+          <button class="btn ghost small" id="now" type="button">지금</button>
+        </div>
+        <div class="hint">정확하지 않아도 괜찮아요. 깬 시각쯤으로 적어 주세요. 이 시각의 하늘로 별자리 차트를 그려요.</div>
+
+        <label>꿈꾼 장소 · 시간대</label>
+        <div class="row">
+          <select id="city"></select>
+          <select id="tz"></select>
+        </div>
+        <div class="row" id="custom-place" hidden>
+          <input type="number" id="lat" step="0.0001" placeholder="위도 (예: 37.5665)">
+          <input type="number" id="lon" step="0.0001" placeholder="경도 (예: 126.9780)">
+        </div>
+
+        <label>꿈속 기분 (여러 개 골라도 돼요)</label>
+        <div class="chips" id="moods"></div>
+
+        <label for="note">요즘 깨어 있을 때의 일 (선택) — 탐정에게 배경 단서가 돼요</label>
+        <textarea id="note" placeholder="예) 이사를 앞두고 있어요 / 회사에서 새 일을 맡았어요"></textarea>
+
+        <div class="actions">
+          <button class="btn" id="investigate">🔍 몽록 탐정에게 맡기기</button>
+          <button class="btn ghost" id="save-only">일기에만 저장</button>
+        </div>
+        <div class="msg" id="write-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>✨ 꿈꾼 순간의 하늘</h2>
+        <div class="chart" id="preview-chart"></div>
+        <div class="chart-meta" id="preview-meta"></div>
+      </div>
+    </div>
+
+    <div class="card" id="result" hidden>
+      <h2 id="result-title">🕵️ 몽록의 수사 보고서</h2>
+      <div class="analysis" id="result-body"></div>
+    </div>
+  </section>
+
+  <!-- 꿈 일기 -->
+  <section id="tab-diary" hidden>
+    <div class="card" id="diary-list-card">
+      <h2>📔 꿈 일기 <span class="hint" id="diary-count"></span></h2>
+      <div class="list" id="diary-list"></div>
+    </div>
+    <div id="diary-detail" hidden></div>
+  </section>
+
+  <!-- 꿈 패턴 -->
+  <section id="tab-pattern" hidden>
+    <div class="card">
+      <h2>🔁 자주 꾸는 꿈 단서</h2>
+      <div id="stats"></div>
+    </div>
+    <div class="card">
+      <h2>🕵️ 몽록의 종합 수사</h2>
+      <p class="hint">지금까지의 꿈(최근 40개까지)을 몽록이 한꺼번에 읽고, 되풀이되는 상징과 무의식의 흐름을 찾아드려요.</p>
+      <div class="actions"><button class="btn" id="pattern-go">🔍 종합 분석 맡기기</button></div>
+      <div class="msg" id="pattern-msg"></div>
+      <div class="analysis" id="pattern-body" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- 설정 -->
+  <section id="tab-settings" hidden>
+    <div class="card">
+      <h2>🔑 Claude API 키</h2>
+      <p class="hint" id="key-state"></p>
+      <label for="apikey">API 키 (sk-ant- 로 시작)</label>
+      <div class="row">
+        <input type="password" id="apikey" placeholder="sk-ant-..." autocomplete="off">
+        <button class="btn small" id="save-key">저장</button>
+      </div>
+      <div class="msg" id="key-msg"></div>
+      <p class="hint" style="margin-top:14px">키 받는 방법</p>
+      <ol class="steps">
+        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> 에 가입·로그인</li>
+        <li>왼쪽 메뉴 <b>Billing</b> 에서 크레딧 충전 (꿈 분석 1번에 대략 수십 원)</li>
+        <li><b>API Keys</b> → <b>Create Key</b> → 나온 키를 복사해서 위 칸에 붙여 넣고 저장</li>
+      </ol>
+      <p class="hint">키와 꿈 일기는 이 컴퓨터의 <code>dream-detective\data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
+      <p class="hint" id="model-line"></p>
+    </div>
+    <div class="card">
+      <h2>📍 기본 장소 · 시간대</h2>
+      <div class="row">
+        <select id="def-city"></select>
+        <select id="def-tz"></select>
+      </div>
+      <div class="row" id="def-custom" hidden>
+        <input type="number" id="def-lat" step="0.0001" placeholder="위도">
+        <input type="number" id="def-lon" step="0.0001" placeholder="경도">
+      </div>
+      <div class="actions"><button class="btn small" id="save-place">기본값으로 저장</button></div>
+      <div class="msg" id="place-msg"></div>
+    </div>
+  </section>
+
+  <footer>꿈 해석은 마음을 들여다보는 하나의 거울일 뿐, 예언이나 진단이 아니에요. 마음이 많이 힘들 땐 전문가와 이야기해 주세요 (자살예방상담 109).</footer>
+</div>
+
+<script type="module">
+import { SIGNS, PLANETS, ASPECTS, computeChart, localToDate, norm } from '/astro.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const TEXT_GLYPH = '︎'; // 이모지 대신 기호 모양으로
+
+const CITIES = [
+  ['서울', 37.5665, 126.978], ['부산', 35.1796, 129.0756], ['대구', 35.8714, 128.6014], ['인천', 37.4563, 126.7052],
+  ['광주', 35.1595, 126.8526], ['대전', 36.3504, 127.3845], ['울산', 35.5384, 129.3114], ['세종', 36.48, 127.289],
+  ['수원', 37.2636, 127.0286], ['춘천', 37.8813, 127.7298], ['강릉', 37.7519, 128.8761], ['청주', 36.6424, 127.489],
+  ['전주', 35.8242, 127.148], ['포항', 36.019, 129.3435], ['창원', 35.228, 128.6811], ['제주', 33.4996, 126.5312],
+];
+const MOODS = ['😨 무서움', '😰 불안', '😢 슬픔', '😡 화남', '😊 기쁨', '😌 평온', '😳 당황', '🤩 신기함', '🥰 설렘', '😶 멍함'];
+const TALK = [
+  '단서는 언제나 꿈의 가장 이상한 곳에 숨어 있죠. 🔎',
+  '꿈속 인물은 대개 당신 마음의 한 조각이랍니다.',
+  '달이 어디에 떠 있었는지도 살펴볼게요. 🌙',
+  '무서운 꿈일수록 중요한 편지일 때가 많아요. 💌',
+  '부엉… 기억이 흐려지기 전에 적어 두세요!',
+];
+
+let status = {};
+let dreams = [];
+const selectedMoods = new Set();
+
+// ---------- 공통 ----------
+function say(text) { $('bubble').textContent = text; }
+$('owl').onclick = () => say(TALK[Math.floor(Math.random() * TALK.length)]);
+
+function showMsg(el, text, kind = '') { el.textContent = text; el.className = `msg ${kind}`; }
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `문제가 생겼어요 (${res.status})`);
+  return data;
+}
+
+function fillPlaceSelect(sel) {
+  sel.innerHTML = CITIES.map(([n], i) => `<option value="${i}">📍 ${n}</option>`).join('') + '<option value="custom">📍 직접 입력 (위도·경도)</option>';
+}
+function fillTzSelect(sel) {
+  const opts = [];
+  for (let h = -12; h <= 14; h++) opts.push(`<option value="${h}">🕘 UTC${h >= 0 ? '+' : ''}${h}${h === 9 ? ' (한국)' : h === 0 ? ' (영국)' : ''}</option>`);
+  sel.innerHTML = opts.join('');
+}
+function readPlace(citySel, latEl, lonEl) {
+  if (citySel.value === 'custom') return { name: '직접 입력', lat: Number(latEl.value), lon: Number(lonEl.value) };
+  const [name, lat, lon] = CITIES[Number(citySel.value)];
+  return { name, lat, lon };
+}
+function setPlace(place, citySel, latEl, lonEl, customRow) {
+  const i = CITIES.findIndex(([n, lat, lon]) => n === place?.name && lat === place.lat && lon === place.lon);
+  if (place && i < 0) { citySel.value = 'custom'; latEl.value = place.lat; lonEl.value = place.lon; }
+  else citySel.value = String(Math.max(i, 0));
+  customRow.hidden = citySel.value !== 'custom';
+}
+
+function localNow() {
+  const d = new Date(Date.now() + Number($('tz').value || 9) * 3600000);
+  return d.toISOString().slice(0, 16);
+}
+
+// ---------- 간단한 마크다운 → 화면 ----------
+function inline(s) {
+  return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>');
+}
+function renderMarkdown(md) {
+  const out = [];
+  let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of md.split('\n')) {
+    const line = raw.trim();
+    let m;
+    if (!line) { close(); continue; }
+    if ((m = /^#{1,2}\s+(.*)/.exec(line))) { close(); out.push(`<h3>${inline(m[1])}</h3>`); }
+    else if ((m = /^#{3,6}\s+(.*)/.exec(line))) { close(); out.push(`<h4>${inline(m[1])}</h4>`); }
+    else if ((m = /^[-*•]\s+(.*)/.exec(line))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else if ((m = /^\d+[.)]\s+(.*)/.exec(line))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else if (/^(-{3,}|\*{3,})$/.test(line)) { close(); out.push('<hr style="border:0;border-top:1px solid var(--line)">'); }
+    else { close(); out.push(`<p>${inline(line)}</p>`); }
+  }
+  close();
+  return out.join('');
+}
+// 스트리밍 중에는 맨 끝의 <제목> <키워드> 꼬리표를 숨김
+function visiblePart(text) {
+  let cut = text.search(/<제목>|<키워드>/);
+  if (cut < 0) {
+    const lt = text.lastIndexOf('<');
+    if (lt >= 0 && text.length - lt < 6 && !text.slice(lt).includes('>')) cut = lt;
+  }
+  return cut >= 0 ? text.slice(0, cut) : text;
+}
+
+// ---------- 별자리 차트 그리기 ----------
+const ELEMENT_COLOR = { '불': '#ff8a65', '흙': '#8bd48f', '공기': '#ffe27a', '물': '#6fc3ff' };
+const ASPECT_COLOR = { conjunction: '#f3c96b', sextile: '#7cc4ff', trine: '#7cc4ff', square: '#ff7b8a', opposition: '#ff7b8a' };
+
+function drawChart(chart) {
+  const asc = chart.asc.lon;
+  const P = (lon, r) => {
+    const a = (180 + lon - asc) * Math.PI / 180;
+    return [r * Math.cos(a), -r * Math.sin(a)];
+  };
+  const R0 = 212, R1 = 176, R2 = 122, R3 = 92;
+  const s = [];
+  s.push(`<svg viewBox="-242 -228 484 456" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="별자리 차트" font-family="Segoe UI Symbol, Noto Sans Symbols 2, Malgun Gothic, sans-serif">`);
+  s.push(`<circle r="${R0}" fill="#141941" stroke="#3a4290"/>`);
+  // 황도 12궁 띠
+  SIGNS.forEach((sign, i) => {
+    const a0 = i * 30, a1 = a0 + 30;
+    const [x0, y0] = P(a0, R0), [x1, y1] = P(a1, R0), [x2, y2] = P(a1, R1), [x3, y3] = P(a0, R1);
+    s.push(`<path d="M${x0},${y0} A${R0},${R0} 0 0 0 ${x1},${y1} L${x2},${y2} A${R1},${R1} 0 0 1 ${x3},${y3} Z" fill="${ELEMENT_COLOR[sign.element]}" fill-opacity="0.13" stroke="#3a4290"/>`);
+    const [gx, gy] = P(a0 + 15, (R0 + R1) / 2);
+    s.push(`<text x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" font-size="19" fill="${ELEMENT_COLOR[sign.element]}" text-anchor="middle" dominant-baseline="central"><title>${sign.name}</title>${sign.glyph}${TEXT_GLYPH}</text>`);
+  });
+  const line = (lon, ra, rb, attrs) => {
+    const [x1, y1] = P(lon, ra), [x2, y2] = P(lon, rb);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" ${attrs}/>`;
+  };
+  for (let d = 0; d < 360; d += 5) s.push(line(d, R1, R1 - (d % 10 ? 4 : 7), 'stroke="#5a62b0" stroke-width="0.8"'));
+  s.push(`<circle r="${R1}" fill="none" stroke="#3a4290"/><circle r="${R3}" fill="#10143a" stroke="#3a4290"/>`);
+  // 하우스 (이퀄)
+  for (let h = 0; h < 12; h++) {
+    const lon = asc + h * 30;
+    const [x1, y1] = P(lon, R3), [x2, y2] = P(lon, R1);
+    const strong = h % 3 === 0;
+    s.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${strong ? '#8f87e0' : '#343c84'}" stroke-width="${strong ? 1.4 : 0.8}"/>`);
+    const [nx, ny] = P(lon + 15, R3 + 10);
+    s.push(`<text x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" font-size="9" fill="#7d78b8" text-anchor="middle" dominant-baseline="central">${h + 1}</text>`);
+  }
+  // MC
+  const [mx1, my1] = P(chart.mc.lon, R3), [mx2, my2] = P(chart.mc.lon, R1);
+  s.push(`<line x1="${mx1.toFixed(1)}" y1="${my1.toFixed(1)}" x2="${mx2.toFixed(1)}" y2="${my2.toFixed(1)}" stroke="#f3c96b" stroke-width="1.4" stroke-dasharray="4 3"/>`);
+  const [mtx, mty] = P(chart.mc.lon, R0 + 9);
+  s.push(`<text x="${mtx.toFixed(1)}" y="${mty.toFixed(1)}" font-size="10" fill="#f3c96b" text-anchor="middle" dominant-baseline="central">MC</text>`);
+  s.push(`<text x="${(-R0 - 2).toFixed(1)}" y="-6" font-size="10" fill="#f3c96b" text-anchor="end">ASC</text>`);
+  // 애스펙트 선
+  const byKey = Object.fromEntries(chart.planets.map((p) => [p.key, p]));
+  for (const a of chart.aspects) {
+    if (a.type === 'conjunction') continue;
+    const [x1, y1] = P(byKey[a.a].lon, R3 - 2), [x2, y2] = P(byKey[a.b].lon, R3 - 2);
+    const op = Math.max(0.25, 0.9 - a.orb / 10);
+    s.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${ASPECT_COLOR[a.type]}" stroke-opacity="${op.toFixed(2)}" stroke-width="1"/>`);
+  }
+  // 행성: 겹치지 않게 살짝 벌림
+  const sorted = [...chart.planets].sort((a, b) => a.lon - b.lon).map((p) => ({ p, show: p.lon }));
+  for (let pass = 0; pass < 40; pass++) {
+    let moved = false;
+    for (let i = 0; i < sorted.length; i++) {
+      const a = sorted[i], b = sorted[(i + 1) % sorted.length];
+      const gap = norm(b.show - a.show);
+      if (gap < 9 && sorted.length > 1) { a.show = norm(a.show - (9 - gap) / 2); b.show = norm(b.show + (9 - gap) / 2); moved = true; }
+    }
+    if (!moved) break;
+  }
+  for (const { p, show } of sorted) {
+    const [tx1, ty1] = P(p.lon, R1), [tx2, ty2] = P(p.lon, R1 - 9);
+    s.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="#ffe3a3" stroke-width="1.5"/>`);
+    const [gx, gy] = P(show, 152);
+    const color = p.key === 'sun' ? '#ffcf5a' : p.key === 'moon' ? '#e8e6ff' : '#d9d4ff';
+    s.push(`<text x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" font-size="${p.key === 'sun' || p.key === 'moon' ? 21 : 18}" fill="${color}" text-anchor="middle" dominant-baseline="central"><title>${p.name} ${p.sign.text}${p.retrograde ? ' (역행)' : ''}</title>${p.glyph}${TEXT_GLYPH}</text>`);
+    const [dx, dy] = P(show, 132);
+    s.push(`<text x="${dx.toFixed(1)}" y="${dy.toFixed(1)}" font-size="8.5" fill="#a8a4d8" text-anchor="middle" dominant-baseline="central">${p.sign.deg}°${p.retrograde ? 'R' : ''}</text>`);
+  }
+  // 가운데: 달 모양
+  s.push(`<text y="-6" font-size="30" text-anchor="middle" dominant-baseline="central">${chart.moonPhase.emoji}</text>`);
+  s.push(`<text y="24" font-size="10" fill="#a8a4d8" text-anchor="middle">${esc(chart.moonPhase.name)}</text>`);
+  s.push('</svg>');
+  return s.join('');
+}
+
+function planetTable(chart) {
+  const rows = chart.planets.map((p) => `<tr><td>${p.glyph}${TEXT_GLYPH} ${p.name}</td><td>${p.sign.text}${p.retrograde ? ' <span class="hint">역행</span>' : ''}</td><td class="hint">${p.house}하우스</td></tr>`);
+  rows.push(`<tr><td>ASC 상승점</td><td>${chart.asc.sign.text}</td><td></td></tr><tr><td>MC 중천점</td><td>${chart.mc.sign.text}</td><td></td></tr>`);
+  return `<table class="planets">${rows.join('')}</table>`;
+}
+
+function chartBlock(chart) {
+  const moon = chart.planets.find((p) => p.key === 'moon');
+  const sun = chart.planets.find((p) => p.key === 'sun');
+  return `<div class="chart">${drawChart(chart)}</div><div class="chart-meta">☉${TEXT_GLYPH} ${sun.sign.name} · ☽${TEXT_GLYPH} ${moon.sign.name} · ${chart.moonPhase.emoji} ${chart.moonPhase.name} · ASC ${chart.asc.sign.name}</div>${planetTable(chart)}`;
+}
+
+// ---------- 꿈 기록 탭 ----------
+function updatePreview() {
+  const place = readPlace($('city'), $('lat'), $('lon'));
+  const date = localToDate($('when').value, Number($('tz').value));
+  if (!date || !Number.isFinite(place.lat) || !Number.isFinite(place.lon) || Math.abs(place.lat) > 66) {
+    $('preview-chart').innerHTML = '<p class="hint">시간과 장소를 넣으면 그 순간의 하늘이 그려져요.</p>';
+    $('preview-meta').textContent = '';
+    return;
+  }
+  const chart = computeChart(date, place);
+  $('preview-chart').innerHTML = chartBlock(chart);
+  $('preview-meta').textContent = '';
+}
+
+$('moods').innerHTML = MOODS.map((m) => `<button type="button" class="chip" data-mood="${m}">${m}</button>`).join('');
+$('moods').onclick = (e) => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  const m = b.dataset.mood;
+  if (selectedMoods.has(m)) selectedMoods.delete(m); else selectedMoods.add(m);
+  b.classList.toggle('on', selectedMoods.has(m));
+};
+
+fillPlaceSelect($('city')); fillTzSelect($('tz'));
+fillPlaceSelect($('def-city')); fillTzSelect($('def-tz'));
+$('city').onchange = () => { $('custom-place').hidden = $('city').value !== 'custom'; updatePreview(); };
+$('def-city').onchange = () => { $('def-custom').hidden = $('def-city').value !== 'custom'; };
+for (const id of ['when', 'tz', 'lat', 'lon']) $(id).addEventListener('input', updatePreview);
+$('now').onclick = () => { $('when').value = localNow(); updatePreview(); };
+
+async function streamInto(path, bodyEl, onDone) {
+  bodyEl.innerHTML = '<p class="thinking">몽록이 단서를 모으고 있어요… (30초~1분쯤 걸려요)</p>';
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `문제가 생겼어요 (${res.status})`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+    const errAt = text.indexOf('\u0000');
+    const shown = visiblePart(errAt >= 0 ? text.slice(0, errAt) : text);
+    if (shown.trim()) bodyEl.innerHTML = renderMarkdown(shown) + (errAt >= 0 ? '' : '<p class="thinking">계속 쓰는 중…</p>');
+  }
+  text += decoder.decode();
+  const errAt = text.indexOf('\u0000');
+  if (errAt >= 0) throw new Error(text.slice(errAt + 1));
+  bodyEl.innerHTML = renderMarkdown(visiblePart(text));
+  await onDone?.();
+}
+
+async function saveDream() {
+  const text = $('text').value.trim();
+  if (!text) throw new Error('꿈 내용을 먼저 적어 주세요.');
+  const { dream } = await api('/api/dreams', {
+    method: 'POST',
+    body: JSON.stringify({
+      text, note: $('note').value, moods: [...selectedMoods],
+      dreamAtLocal: $('when').value, tzOffset: Number($('tz').value),
+      place: readPlace($('city'), $('lat'), $('lon')),
+    }),
+  });
+  return dream;
+}
+
+function resetForm() {
+  $('text').value = ''; $('note').value = '';
+  selectedMoods.clear();
+  document.querySelectorAll('#moods .chip').forEach((c) => c.classList.remove('on'));
+}
+
+$('save-only').onclick = async () => {
+  try {
+    await saveDream();
+    resetForm();
+    showMsg($('write-msg'), '📔 꿈 일기에 저장했어요. 나중에 일기에서 분석을 맡길 수도 있어요.', 'ok');
+    await loadDreams();
+  } catch (err) { showMsg($('write-msg'), err.message, 'err'); }
+};
+
+$('investigate').onclick = async () => {
+  const btn = $('investigate');
+  showMsg($('write-msg'), '');
+  if (!status.hasKey) {
+    showMsg($('write-msg'), 'Claude API 키가 아직 없어요. ⚙️ 설정에서 키를 넣거나, [일기에만 저장]을 눌러 주세요.', 'err');
+    return;
+  }
+  btn.disabled = true;
+  let dream;
+  try {
+    dream = await saveDream();
+    resetForm();
+    $('result').hidden = false;
+    $('result-title').textContent = '🕵️ 몽록의 수사 보고서';
+    say('부엉! 수사를 시작합니다. 🔎');
+    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    await streamInto(`/api/dreams/${dream.id}/analyze`, $('result-body'), async () => {
+      await loadDreams();
+      const saved = dreams.find((d) => d.id === dream.id);
+      if (saved?.title) $('result-title').textContent = `🕵️ 사건 파일: 「${saved.title}」`;
+      say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
+    });
+  } catch (err) {
+    showMsg($('write-msg'), err.message + (dream ? ' (꿈 내용은 일기에 저장되어 있어요.)' : ''), 'err');
+    if (dream) { $('result').hidden = true; await loadDreams(); }
+  } finally { btn.disabled = false; }
+};
+
+// ---------- 꿈 일기 탭 ----------
+const fmtDate = (d) => {
+  const [date, time] = d.dreamAtLocal.split('T');
+  const [y, m, day] = date.split('-');
+  return `${y}년 ${Number(m)}월 ${Number(day)}일 ${time}`;
+};
+
+async function loadDreams() {
+  ({ dreams } = await api('/api/dreams'));
+  $('diary-count').textContent = dreams.length ? `${dreams.length}개` : '';
+  $('diary-list').innerHTML = dreams.length ? dreams.map((d) => {
+    const moon = d.chart.planets.find((p) => p.key === 'moon');
+    return `<button class="dream" data-id="${d.id}">
+      <div class="date">${fmtDate(d)} · ${d.chart.moonPhase.emoji} 달 ${moon.sign.name}</div>
+      <div class="title">${esc(d.title || (d.analysis ? '이름 없는 사건' : '🕒 아직 수사 전'))}</div>
+      <div class="preview">${esc(d.text)}</div>
+      <div class="tags">${(d.keywords || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}${(d.moods || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}</div>
+    </button>`;
+  }).join('') : '<p class="hint">아직 기록한 꿈이 없어요. ✍️ 꿈 기록에서 첫 사건을 남겨 주세요.</p>';
+}
+
+$('diary-list').onclick = (e) => {
+  const b = e.target.closest('.dream');
+  if (b) openDream(b.dataset.id);
+};
+
+function openDream(id) {
+  const d = dreams.find((x) => x.id === id);
+  if (!d) return;
+  $('diary-list-card').hidden = true;
+  const el = $('diary-detail');
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="actions" style="margin:0 0 12px"><button class="btn ghost small" id="back">← 목록으로</button></div>
+    <div class="grid">
+      <div class="card">
+        <h2>${esc(d.title ? `「${d.title}」` : '꿈 사건')}</h2>
+        <p class="hint">${fmtDate(d)} · ${esc(d.chart.place.name || '')}</p>
+        <div class="dream-text">${esc(d.text)}</div>
+        ${d.note ? `<p class="hint" style="margin-top:10px">요즘의 일: ${esc(d.note)}</p>` : ''}
+        <div class="tags" style="margin-top:10px">${(d.keywords || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}${(d.moods || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}</div>
+        <div class="actions">
+          <button class="btn small" id="reanalyze">${d.analysis ? '🔁 다시 분석' : '🔍 몽록에게 맡기기'}</button>
+          <button class="btn danger small" id="del">🗑️ 삭제</button>
+        </div>
+        <div class="msg" id="detail-msg"></div>
+      </div>
+      <div class="card"><h2>✨ 꿈꾼 순간의 하늘</h2>${chartBlock(d.chart)}</div>
+    </div>
+    <div class="card"><h2>🕵️ 몽록의 수사 보고서</h2><div class="analysis" id="detail-body">${d.analysis ? renderMarkdown(d.analysis) : '<p class="hint">아직 분석 전이에요.</p>'}</div></div>`;
+  $('back').onclick = closeDream;
+  $('del').onclick = async () => {
+    if (!confirm('이 꿈 기록을 지울까요? 지우면 되돌릴 수 없어요.')) return;
+    try { await api(`/api/dreams/${id}`, { method: 'DELETE' }); await loadDreams(); closeDream(); }
+    catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
+  };
+  $('reanalyze').onclick = async () => {
+    const btn = $('reanalyze');
+    btn.disabled = true;
+    showMsg($('detail-msg'), '');
+    try {
+      await streamInto(`/api/dreams/${id}/analyze`, $('detail-body'), async () => { await loadDreams(); openDream(id); });
+    } catch (err) {
+      showMsg($('detail-msg'), err.message, 'err');
+      $('detail-body').innerHTML = d.analysis ? renderMarkdown(d.analysis) : '';
+      btn.disabled = false;
+    }
+  };
+  window.scrollTo({ top: 0 });
+}
+function closeDream() { $('diary-detail').hidden = true; $('diary-detail').innerHTML = ''; $('diary-list-card').hidden = false; }
+
+// ---------- 꿈 패턴 탭 ----------
+function bars(list, empty) {
+  if (!list.length) return `<p class="hint">${empty}</p>`;
+  const max = list[0].n;
+  return `<div class="bars">${list.slice(0, 8).map((x) => `<div class="bar"><span>${esc(x.name)}</span><div class="track"><div class="fill" style="width:${(x.n / max) * 100}%"></div></div><span class="n">${x.n}</span></div>`).join('')}</div>`;
+}
+async function loadPatterns() {
+  const { stats, last } = await api('/api/patterns');
+  $('stats').innerHTML = `
+    <p>지금까지 <span class="big">${stats.total}</span> 개의 꿈, 그중 <b>${stats.analyzed}</b> 개를 수사했어요.</p>
+    <div class="stat-grid">
+      <div><h3 style="margin:8px 0;font-size:15px">🗝️ 자주 나온 상징</h3>${bars(stats.keywords, '꿈을 분석하면 상징이 모여요.')}</div>
+      <div><h3 style="margin:8px 0;font-size:15px">💭 꿈속 기분</h3>${bars(stats.moods, '꿈을 기록할 때 기분을 골라 주세요.')}</div>
+      <div><h3 style="margin:8px 0;font-size:15px">☽${TEXT_GLYPH} 꿈꾼 날 달의 별자리</h3>${bars(stats.moonSigns, '아직 기록이 없어요.')}</div>
+      <div><h3 style="margin:8px 0;font-size:15px">🌗 꿈꾼 날 달의 모양</h3>${bars(stats.moonPhases, '아직 기록이 없어요.')}</div>
+    </div>`;
+  if (last && !$('pattern-body').dataset.fresh) {
+    const at = new Date(last.at).toLocaleString('ko-KR');
+    $('pattern-body').innerHTML = `<p class="hint">지난 종합 분석: ${at} (꿈 ${last.count}개)</p>${renderMarkdown(last.text)}`;
+  }
+}
+$('pattern-go').onclick = async () => {
+  const btn = $('pattern-go');
+  btn.disabled = true;
+  showMsg($('pattern-msg'), '');
+  try {
+    $('pattern-body').dataset.fresh = '1';
+    await streamInto('/api/patterns', $('pattern-body'));
+    say('꿈들 사이의 연결고리를 찾아냈어요! 🧵');
+  } catch (err) {
+    showMsg($('pattern-msg'), err.message, 'err');
+    $('pattern-body').innerHTML = '';
+  } finally { btn.disabled = false; }
+};
+
+// ---------- 설정 탭 ----------
+async function loadStatus() {
+  status = await api('/api/status');
+  $('build').textContent = `빌드 ${status.build}`;
+  $('key-state').textContent = status.hasKey
+    ? (status.keyFromEnv ? '✅ 컴퓨터 환경변수(ANTHROPIC_API_KEY)의 키를 쓰고 있어요.' : `✅ 키가 저장되어 있어요: ${status.maskedKey}`)
+    : '❗ 아직 키가 없어요. 꿈 분석을 하려면 Claude API 키가 필요해요.';
+  $('model-line').textContent = `분석 모델: ${status.model}`;
+}
+$('save-key').onclick = async () => {
+  try {
+    await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey: $('apikey').value }) });
+    $('apikey').value = '';
+    await loadStatus();
+    showMsg($('key-msg'), status.hasKey ? '저장했어요! 이제 몽록이 수사할 수 있어요. 🦉' : '키를 지웠어요.', 'ok');
+  } catch (err) { showMsg($('key-msg'), err.message, 'err'); }
+};
+$('save-place').onclick = async () => {
+  try {
+    const place = readPlace($('def-city'), $('def-lat'), $('def-lon'));
+    await api('/api/settings', { method: 'POST', body: JSON.stringify({ place, tzOffset: Number($('def-tz').value) }) });
+    setPlace(place, $('city'), $('lat'), $('lon'), $('custom-place'));
+    $('tz').value = $('def-tz').value;
+    updatePreview();
+    showMsg($('place-msg'), '기본 장소를 저장했어요.', 'ok');
+  } catch (err) { showMsg($('place-msg'), err.message, 'err'); }
+};
+
+// ---------- 탭 ----------
+document.querySelector('nav').onclick = async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('on', x === b));
+  for (const t of ['write', 'diary', 'pattern', 'settings']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
+  if (b.dataset.tab === 'diary') { closeDream(); await loadDreams(); }
+  if (b.dataset.tab === 'pattern') await loadPatterns();
+};
+
+// ---------- 시작 ----------
+try {
+  await loadStatus();
+  const place = status.place || { name: '서울', lat: 37.5665, lon: 126.978 };
+  setPlace(place, $('city'), $('lat'), $('lon'), $('custom-place'));
+  setPlace(place, $('def-city'), $('def-lat'), $('def-lon'), $('def-custom'));
+  $('tz').value = String(status.tzOffset); $('def-tz').value = String(status.tzOffset);
+  $('when').value = localNow();
+  updatePreview();
+  await loadDreams();
+  if (!status.hasKey) say('처음 오셨군요! ⚙️ 설정에서 Claude API 키를 넣으면 제가 꿈을 수사할 수 있어요.');
+} catch (err) {
+  say('서버와 연결이 안 돼요. 검은 창(꿈탐정)이 켜져 있는지 확인해 주세요.');
+}
+</script>
+</body>
+</html>
