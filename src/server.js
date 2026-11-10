@@ -23,6 +23,7 @@ const FILES = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/icon.png': ['icon.png', 'image/png'],
   '/astro.js': ['../src/astro.js', 'text/javascript; charset=utf-8'],
+  '/reading.js': ['../src/reading.js', 'text/javascript; charset=utf-8'],
 };
 
 class RequestError extends Error {
