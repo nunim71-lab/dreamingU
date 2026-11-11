@@ -101,6 +101,11 @@ export function buildPatternPrompt(dreams, stats) {
 
 export { parseReport } from './report.js';
 
+// 종합 분석을 claude.ai 에 붙여 넣을 한 덩어리 글
+export function buildPatternPastePrompt(dreams, stats) {
+  return `${PATTERN_SYSTEM}\n\n인사말이나 덧붙이는 말 없이, 위 차례대로 종합 분석만 써 주세요.\n\n━━━━━━━━━━\n\n${buildPatternPrompt(dreams, stats)}`;
+}
+
 // claude.ai 에 붙여 넣을 한 덩어리 글 (API 대신 Claude 구독으로 분석할 때)
 // 화면에서 복사할 때 <꼬리표> 가 사라질 수 있어서, 【분석심리학】 같은 표시 줄로 바꿔서 부탁함
 export function buildPastePrompt(dream, recentDreams = []) {

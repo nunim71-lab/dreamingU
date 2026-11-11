@@ -107,6 +107,28 @@ test('copy-and-paste analysis works without an API key', async () => {
   });
 });
 
+test('overall pattern analysis also works by copy and paste', async () => {
+  await withServer({}, async (base) => {
+    assert.equal((await fetch(`${base}/api/patterns/prompt`)).status, 400, '꿈이 2개는 있어야 함');
+    await json(base, '/api/dreams', DREAM);
+    await json(base, '/api/dreams', { ...DREAM, text: '바다를 헤엄친 꿈', dreamAtLocal: '2026-11-11T06:00' });
+    const noKey = await json(base, '/api/patterns', {});
+    assert.equal(noKey.status, 400);
+    assert.match((await noKey.json()).error, /글 복사/);
+    const { text } = await (await fetch(`${base}/api/patterns/prompt`)).json();
+    assert.match(text, /하늘을 나는 꿈/);
+    assert.match(text, /바다를 헤엄친 꿈/);
+    assert.match(text, /종합 분석만 써 주세요/);
+    assert.equal((await json(base, '/api/patterns/report', { text: '네' })).status, 400);
+    const answer = '## 🗂️ 수사 기록 요약\n두 꿈 모두 넓은 곳을 자유롭게 움직이는 꿈이에요.';
+    const saved = await (await json(base, '/api/patterns/report', { text: answer })).json();
+    assert.equal(saved.last.text, answer);
+    assert.equal(saved.last.via, 'paste');
+    const { last } = await (await fetch(`${base}/api/patterns`)).json();
+    assert.equal(last.count, 2);
+  });
+});
+
 test('unknown features explain how to restart, and shutdown asks the app to close', async () => {
   let closed = 0;
   await withServer({ onShutdown: () => { closed++; } }, async (base) => {

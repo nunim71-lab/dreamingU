@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeChart, localToDate } from './astro.js';
-import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPastePrompt, buildPatternPrompt, parseReport } from './claude.js';
+import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPastePrompt, buildPatternPastePrompt, buildPatternPrompt, parseReport } from './claude.js';
 import { createStore } from './store.js';
 
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -244,15 +244,34 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         return sendJson(res, 200, { stats: makeStats(dreams), last: settings.lastPattern || null });
       }
 
+      const needTwoDreams = () => {
+        if (dreams.length < 2) throw new RequestError('꿈이 2개 이상 모이면 종합 분석을 할 수 있어요.');
+        return dreams.slice(0, PATTERN_LIMIT).reverse();
+      };
+      const savePattern = async (text, count, via) => {
+        settings = { ...settings, lastPattern: { text: text.trim(), at: new Date().toISOString(), count, via } };
+        await store.saveSettings(settings);
+      };
+
       if (req.method === 'POST' && url.pathname === '/api/patterns') {
         await readJson(req);
-        if (dreams.length < 2) throw new RequestError('꿈이 2개 이상 모이면 종합 분석을 할 수 있어요.');
-        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. ⚙️ 설정에서 먼저 넣어 주세요.');
-        const recent = dreams.slice(0, PATTERN_LIMIT).reverse();
-        return stream(res, PATTERN_SYSTEM, buildPatternPrompt(recent, statsText(makeStats(recent))), async (text) => {
-          settings = { ...settings, lastPattern: { text: text.trim(), at: new Date().toISOString(), count: recent.length } };
-          await store.saveSettings(settings);
-        });
+        const recent = needTwoDreams();
+        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. [📋 Claude에게 물어볼 글 복사]로 Claude 구독을 써서 분석하거나, ⚙️ 설정에서 API 키를 넣어 주세요.');
+        return stream(res, PATTERN_SYSTEM, buildPatternPrompt(recent, statsText(makeStats(recent))), (text) => savePattern(text, recent.length, 'api'));
+      }
+
+      // 종합 분석도 claude.ai 로 (복사 → 붙여넣기)
+      if (req.method === 'GET' && url.pathname === '/api/patterns/prompt') {
+        const recent = needTwoDreams();
+        return sendJson(res, 200, { text: buildPatternPastePrompt(recent, statsText(makeStats(recent))) });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/patterns/report') {
+        const body = await readJson(req);
+        const text = String(body.text || '').trim();
+        if (text.length < 30) throw new RequestError('Claude 의 답 전체를 복사해서 붙여 넣어 주세요.');
+        if (text.length > MAX_REPORT_CHARS) throw new RequestError('붙여 넣은 글이 너무 길어요. Claude 의 답만 복사해 주세요.');
+        await savePattern(text, Math.min(dreams.length, PATTERN_LIMIT), 'paste');
+        return sendJson(res, 200, { last: settings.lastPattern });
       }
 
       // 새 버전이 켜질 때 예전 꿈탐정을 끄라고 부탁함 (1.9부터)

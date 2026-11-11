@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="/icon.png?v=1.9">
+<link rel="icon" href="/icon.png?v=1.10">
 <style>
   :root {
     --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
@@ -122,7 +122,7 @@
 <body>
 <div class="app">
   <header>
-    <img src="/icon.png?v=1.9" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="/icon.png?v=1.10" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
@@ -173,7 +173,7 @@
           <button class="btn ghost" id="save-only">일기에만 저장</button>
         </div>
         <div class="msg" id="write-msg"></div>
-        <p class="hint">💡 <b>🔍 맡기기</b>는 API 키로 바로 분석해요(분석마다 API 요금). <b>📋 글 복사</b>는 claude.ai 에 붙여 넣어 <b>Claude 구독</b>으로 분석해요(추가 요금 없음, API 키 필요 없음).</p>
+        <p class="hint" id="write-hint">💡 <b>🔍 맡기기</b>는 API 키로 바로 분석해요(분석마다 API 요금). <b>📋 글 복사</b>는 claude.ai 에 붙여 넣어 <b>Claude 구독</b>으로 분석해요(추가 요금 없음, API 키 필요 없음).</p>
       </div>
 
       <div class="card">
@@ -207,8 +207,12 @@
     <div class="card">
       <h2>🕵️ 부엉의 종합 수사</h2>
       <p class="hint">지금까지의 꿈(최근 40개까지)을 부엉 탐정이 한꺼번에 읽고, 되풀이되는 상징과 무의식의 흐름을 찾아드려요.</p>
-      <div class="actions"><button class="btn" id="pattern-go">🔍 종합 분석 맡기기</button></div>
+      <div class="actions">
+        <button class="btn" id="pattern-go">🔍 종합 분석 맡기기</button>
+        <button class="btn ghost" id="pattern-copy">📋 Claude에게 물어볼 글 복사</button>
+      </div>
       <div class="msg" id="pattern-msg"></div>
+      <div id="pattern-paste" style="margin-top:12px"></div>
       <div class="analysis" id="pattern-body" style="margin-top:12px"></div>
     </div>
   </section>
@@ -536,16 +540,19 @@ async function copyText(text) {
   }
 }
 
-async function copyAskText(id) {
-  const { text } = await api(`/api/dreams/${id}/prompt`);
+// 물어볼 글을 복사하고 claude.ai 를 엶
+async function copyAsk(promptUrl) {
+  const { text } = await api(promptUrl);
   await copyText(text);
   window.open(CLAUDE_URL, '_blank', 'noopener');
 }
+const dreamUrls = (id) => ({ promptUrl: `/api/dreams/${id}/prompt`, reportUrl: `/api/dreams/${id}/report` });
+const PATTERN_URLS = { promptUrl: '/api/patterns/prompt', reportUrl: '/api/patterns/report' };
 
-// 붙여넣기 칸: 저장되면 onSaved(꿈) 호출
-function pasteCardHtml() {
+// 붙여넣기 칸: 저장되면 onSaved(서버의 답) 호출
+function pasteCardHtml(title = '📋 claude.ai 에서 수사 받기') {
   return `<div class="card paste-card">
-    <h2>📋 claude.ai 에서 수사 받기</h2>
+    <h2>${title}</h2>
     <ol>
       <li><b>물어볼 글을 복사했어요.</b> 새로 열린 claude.ai 창의 대화 칸에 <b>Ctrl+V</b> 로 붙여 넣고 보내세요.</li>
       <li>Claude 의 답이 다 나오면, 답 아래의 <b>복사</b> 버튼(📋)을 눌러요.</li>
@@ -561,10 +568,10 @@ function pasteCardHtml() {
   </div>`;
 }
 
-function wirePasteCard(container, id, onSaved) {
+function wirePasteCard(container, { promptUrl, reportUrl }, onSaved) {
   const q = (act) => container.querySelector(`[data-act="${act}"]`);
   q('recopy').onclick = async () => {
-    try { await copyText((await api(`/api/dreams/${id}/prompt`)).text); showMsg(q('msg'), '다시 복사했어요.', 'ok'); }
+    try { await copyText((await api(promptUrl)).text); showMsg(q('msg'), '다시 복사했어요.', 'ok'); }
     catch (err) { showMsg(q('msg'), err.message, 'err'); }
   };
   q('open').onclick = () => window.open(CLAUDE_URL, '_blank', 'noopener');
@@ -572,8 +579,7 @@ function wirePasteCard(container, id, onSaved) {
     const btn = q('save');
     btn.disabled = true;
     try {
-      const { dream } = await api(`/api/dreams/${id}/report`, { method: 'POST', body: JSON.stringify({ text: q('answer').value }) });
-      await onSaved(dream);
+      await onSaved(await api(reportUrl, { method: 'POST', body: JSON.stringify({ text: q('answer').value }) }));
     } catch (err) {
       showMsg(q('msg'), err.message, 'err');
       btn.disabled = false;
@@ -644,11 +650,11 @@ $('copy-ask').onclick = async () => {
   try {
     const dream = await saveDream();
     resetForm();
-    await copyAskText(dream.id);
+    await copyAsk(dreamUrls(dream.id).promptUrl);
     $('result').hidden = false;
     $('result-title').textContent = '🕵️ 부엉의 수사 보고서';
     $('result-body').innerHTML = pasteCardHtml();
-    wirePasteCard($('result-body'), dream.id, async (saved) => {
+    wirePasteCard($('result-body'), dreamUrls(dream.id), async ({ dream: saved }) => {
       $('result-title').textContent = saved.title ? `🕵️ 사건 파일: 「${saved.title}」` : '🕵️ 부엉의 수사 보고서';
       $('result-body').innerHTML = reportHtml({ psych: saved.analysis, sky: saved.skyAnalysis || '' });
       say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
@@ -704,8 +710,8 @@ function openDream(id) {
         ${d.note ? `<p class="hint" style="margin-top:10px">요즘의 일: ${esc(d.note)}</p>` : ''}
         <div class="tags" style="margin-top:10px">${(d.keywords || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}${(d.moods || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}</div>
         <div class="actions">
-          <button class="btn small" id="reanalyze">${d.analysis ? '🔁 다시 분석' : '🔍 부엉에게 맡기기'}</button>
-          <button class="btn ghost small" id="detail-copy">📋 Claude에게 물어볼 글 복사</button>
+          <button class="btn small" id="reanalyze" ${status.hasKey ? '' : 'hidden'}>${d.analysis ? '🔁 다시 분석' : '🔍 부엉에게 맡기기'}</button>
+          <button class="btn ${status.hasKey ? 'ghost ' : ''}small" id="detail-copy">📋 Claude에게 물어볼 글 복사</button>
           <button class="btn danger small" id="del">🗑️ 삭제</button>
         </div>
         <div class="msg" id="detail-msg"></div>
@@ -723,9 +729,9 @@ function openDream(id) {
   $('detail-copy').onclick = async () => {
     showMsg($('detail-msg'), '');
     try {
-      await copyAskText(id);
+      await copyAsk(dreamUrls(id).promptUrl);
       $('detail-body').innerHTML = pasteCardHtml();
-      wirePasteCard($('detail-body'), id, async () => { await loadDreams(); openDream(id); });
+      wirePasteCard($('detail-body'), dreamUrls(id), async () => { await loadDreams(); openDream(id); });
       $('detail-body').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
   };
@@ -784,9 +790,37 @@ $('pattern-go').onclick = async () => {
   } finally { btn.disabled = false; }
 };
 
+$('pattern-copy').onclick = async () => {
+  showMsg($('pattern-msg'), '');
+  try {
+    await copyAsk(PATTERN_URLS.promptUrl);
+    $('pattern-paste').innerHTML = pasteCardHtml('📋 claude.ai 에서 종합 수사 받기');
+    wirePasteCard($('pattern-paste'), PATTERN_URLS, async () => {
+      $('pattern-paste').innerHTML = '';
+      delete $('pattern-body').dataset.fresh;
+      await loadPatterns();
+      say('꿈들 사이의 연결고리를 찾아냈어요! 🧵');
+    });
+    $('pattern-paste').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) { showMsg($('pattern-msg'), err.message, 'err'); }
+};
+
+// API 키가 있으면 [🔍 맡기기]가 주 버튼, 없으면 숨기고 [📋 글 복사]가 주 버튼
+function applyKeyMode() {
+  const has = status.hasKey;
+  $('investigate').hidden = !has;
+  $('pattern-go').hidden = !has;
+  $('copy-ask').className = has ? 'btn ghost' : 'btn';
+  $('pattern-copy').className = has ? 'btn ghost' : 'btn';
+  $('write-hint').innerHTML = has
+    ? '💡 <b>🔍 맡기기</b>는 API 키로 바로 분석해요 (API 크레딧 사용). <b>📋 글 복사</b>는 claude.ai 에 붙여 넣어 <b>Claude 구독</b>으로 분석해요.'
+    : '💡 <b>📋 글 복사</b>를 누르면 claude.ai 가 열려요. 붙여 넣고 받은 답을 다시 붙여 넣으면 <b>Claude 구독</b>으로 분석돼요 (추가 요금 없음). 버튼 한 번에 분석하고 싶으면 ⚙️ 설정에 API 키를 넣어 주세요.';
+}
+
 // ---------- 설정 탭 ----------
 async function loadStatus() {
   status = await api('/api/status');
+  applyKeyMode();
   // 화면은 새것인데 꿈탐정 프로그램은 예전 것으로 켜져 있으면 알려 줌
   const pageBuild = new URL(document.querySelector('link[rel=icon]').href).searchParams.get('v');
   if (pageBuild && status.build !== pageBuild) {
