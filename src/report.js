@@ -25,7 +25,30 @@ function section(text, tag) {
   return trimPartialTag(body).trim();
 }
 
-export function parseReport(text) {
+// claude.ai 에서 복사해 온 답: 【분석심리학】 【천궁도】 【제목】 【키워드】 표시 줄을 꼬리표로 바꿈
+// (표시 줄 앞뒤에 붙은 #, *, > 같은 마크다운 꾸밈도 무시)
+function marksToTags(text) {
+  if (/<(분석심리학|천궁도)>/.test(text) || !text.includes('【')) return text;
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^[\s>#*_]*【\s*(분석심리학|천궁도|제목|키워드)\s*】[\s*_:：]*(.*?)[\s*_]*$/.exec(lines[i]);
+    if (!m) { out.push(lines[i]); continue; }
+    const [, tag, rest] = m;
+    if (tag === '분석심리학' || tag === '천궁도') {
+      out.push(`<${tag}>`);
+      if (rest) out.push(rest);
+    } else {
+      let value = rest;
+      while (!value && i + 1 < lines.length) value = lines[++i].trim();
+      out.push(`<${tag}>${value}</${tag}>`);
+    }
+  }
+  return out.join('\n');
+}
+
+export function parseReport(raw) {
+  const text = marksToTags(raw);
   const psych = section(text, PSYCH_TAG);
   const sky = section(text, SKY_TAG);
   const title = /<제목>([\s\S]*?)<\/제목>/.exec(text)?.[1].trim() || '';
@@ -34,7 +57,11 @@ export function parseReport(text) {
   if (psych === null && sky === null) {
     // 꼬리표 없이 온 글(예전 형식 등)은 통째로 분석심리학 풀이로
     const cut = text.search(/<제목>|<키워드>/);
-    return { psych: trimPartialTag(cut >= 0 ? text.slice(0, cut) : text).trim(), sky: '', title: title.slice(0, 30), keywords };
+    const body = trimPartialTag(cut >= 0 ? text.slice(0, cut) : text);
+    // 표시 없이 왔어도 천궁도 쪽 제목 줄이 보이면 거기서 나눔
+    const skyAt = body.search(/^.*(천궁도 풀이|🌙 그날 밤의 달).*$/m);
+    if (skyAt > 0) return { psych: body.slice(0, skyAt).trim(), sky: body.slice(skyAt).trim(), title: title.slice(0, 30), keywords };
+    return { psych: body.trim(), sky: '', title: title.slice(0, 30), keywords };
   }
   return { psych: psych || '', sky: sky || '', title: title.slice(0, 30), keywords };
 }

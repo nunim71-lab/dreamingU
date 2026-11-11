@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeChart, localToDate } from './astro.js';
-import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPatternPrompt, parseReport } from './claude.js';
+import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPastePrompt, buildPatternPrompt, parseReport } from './claude.js';
 import { createStore } from './store.js';
 
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,6 +17,7 @@ export const BUILD = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'u
 
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_DREAM_CHARS = 20000;
+const MAX_REPORT_CHARS = 60000; // 붙여 넣는 수사 보고서
 const PATTERN_LIMIT = 40; // 종합 분석에 보내는 최근 꿈 수
 
 const FILES = {
@@ -200,7 +201,31 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         return sendJson(res, 200, { dream });
       }
 
-      const m = /^\/api\/dreams\/([\w-]+)(\/analyze)?$/.exec(url.pathname);
+      const m = /^\/api\/dreams\/([\w-]+)(\/analyze|\/prompt|\/report)?$/.exec(url.pathname);
+      const saveReport = async (dream, text, via) => {
+        const { psych, sky, title, keywords } = parseReport(text);
+        Object.assign(dream, { analysis: psych, skyAnalysis: sky, title: title || dream.title, keywords: keywords.length ? keywords : dream.keywords, analyzedAt: new Date().toISOString(), analyzedVia: via });
+        await store.saveDreams(dreams);
+      };
+
+      // claude.ai 에 붙여 넣을 글 (API 키 없어도 됨)
+      if (m && req.method === 'GET' && m[2] === '/prompt') {
+        const dream = findDream(m[1]);
+        return sendJson(res, 200, { text: buildPastePrompt(dream, dreams) });
+      }
+
+      // claude.ai 에서 받은 답을 붙여 넣어 저장
+      if (m && req.method === 'POST' && m[2] === '/report') {
+        const body = await readJson(req);
+        const dream = findDream(m[1]);
+        const text = String(body.text || '').trim();
+        if (!text) throw new RequestError('Claude 의 답을 붙여 넣어 주세요.');
+        if (text.length > MAX_REPORT_CHARS) throw new RequestError('붙여 넣은 글이 너무 길어요. Claude 의 답만 복사해 주세요.');
+        const { psych } = parseReport(text);
+        if (psych.length < 30) throw new RequestError('수사 보고서가 아닌 것 같아요. Claude 의 답 전체를 복사해서 붙여 넣어 주세요.');
+        await saveReport(dream, text, 'paste');
+        return sendJson(res, 200, { dream });
+      }
       if (m && req.method === 'DELETE' && !m[2]) {
         findDream(m[1]);
         dreams = dreams.filter((d) => d.id !== m[1]);
@@ -208,15 +233,11 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         return sendJson(res, 200, { ok: true });
       }
 
-      if (m && req.method === 'POST' && m[2]) {
+      if (m && req.method === 'POST' && m[2] === '/analyze') {
         await readJson(req);
         const dream = findDream(m[1]);
-        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. ⚙️ 설정에서 먼저 넣어 주세요.');
-        return stream(res, DETECTIVE_SYSTEM, buildDreamPrompt(dream, dreams), async (text) => {
-          const { psych, sky, title, keywords } = parseReport(text);
-          Object.assign(dream, { analysis: psych, skyAnalysis: sky, title: title || dream.title, keywords: keywords.length ? keywords : dream.keywords, analyzedAt: new Date().toISOString() });
-          await store.saveDreams(dreams);
-        });
+        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. ⚙️ 설정에서 키를 넣거나, [📋 Claude에게 물어볼 글 복사] 를 써 주세요.');
+        return stream(res, DETECTIVE_SYSTEM, buildDreamPrompt(dream, dreams), (text) => saveReport(dream, text, 'api'));
       }
 
       if (req.method === 'GET' && url.pathname === '/api/patterns') {

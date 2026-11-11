@@ -5,5 +5,5 @@
 - 할 일 목록은 `다음-업데이트.md` 를 먼저 확인.
 - **업데이트할 때마다 빌드 번호의 끝자리를 1 올린다** (1.4 → 1.5 …, 1.9 다음은 사용자에게 물어보기): `package.json` 의 `build`, 그리고 `다음-업데이트.md` 의 "현재 빌드"와 "업데이트 기록" 표를 함께 고친다. `public/index.html` 의 `icon.png?v=…` 도 새 빌드 번호로 (아이콘이 바뀌면 바로 보이게).
 - 외부 라이브러리 없이 Node.js 내장 기능만 사용. 테스트: `npm test`.
-- 꿈 분석은 Claude API(`src/claude.js`, 내장 fetch). 수사 보고서는 쉬운 문장으로, `<분석심리학>` 과 `<천궁도>` 두 부분으로 따로 (`src/report.js` 가 나눔). 차트 계산은 `src/astro.js`, 무료 기본 풀이는 `src/reading.js` (둘 다 브라우저와 함께 씀).
+- 꿈 분석은 Claude API(`src/claude.js`, 내장 fetch). 수사 보고서는 쉬운 문장으로, `<분석심리학>` 과 `<천궁도>` 두 부분으로 따로 (`src/report.js` 가 나눔). API 키 없이 **Claude 구독** 으로도 분석: `[📋 Claude에게 물어볼 글 복사]` → claude.ai → 답을 붙여넣기 (`/api/dreams/:id/prompt`, `/report`). 이때는 `【분석심리학】` 같은 표시 줄을 씀 (화면에서 복사하면 `<꼬리표>` 가 사라질 수 있어서). 차트 계산은 `src/astro.js`, 무료 기본 풀이는 `src/reading.js` (둘 다 브라우저와 함께 씀).
 - 꿈 일기·API 키는 사용자 컴퓨터의 `data/` 폴더에만 (깃에 올리지 않음).

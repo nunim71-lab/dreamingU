@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="/icon.png?v=1.6">
+<link rel="icon" href="/icon.png?v=1.7">
 <style>
   :root {
     --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
@@ -84,6 +84,8 @@
   .planet-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .report-title { color: var(--gold2); font-size: 19px; margin: 6px 4px 10px; }
   .report-part h2 small { font-size: 12px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+  .paste-card ol { padding-left: 20px; margin: 6px 0 10px; font-size: 14px; }
+  .paste-card textarea { min-height: 160px; }
   .analysis { font-size: 15px; }
   .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
   .analysis h3:first-child { margin-top: 0; }
@@ -119,7 +121,7 @@
 <body>
 <div class="app">
   <header>
-    <img src="/icon.png?v=1.6" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="/icon.png?v=1.7" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
@@ -164,9 +166,11 @@
 
         <div class="actions">
           <button class="btn" id="investigate">🔍 부엉 탐정에게 맡기기</button>
+          <button class="btn ghost" id="copy-ask">📋 Claude에게 물어볼 글 복사</button>
           <button class="btn ghost" id="save-only">일기에만 저장</button>
         </div>
         <div class="msg" id="write-msg"></div>
+        <p class="hint">💡 <b>🔍 맡기기</b>는 API 키로 바로 분석해요(분석마다 API 요금). <b>📋 글 복사</b>는 claude.ai 에 붙여 넣어 <b>Claude 구독</b>으로 분석해요(추가 요금 없음, API 키 필요 없음).</p>
       </div>
 
       <div class="card">
@@ -209,7 +213,7 @@
   <!-- 설정 -->
   <section id="tab-settings" hidden>
     <div class="card">
-      <h2>🔑 Claude API 키</h2>
+      <h2>🔑 Claude API 키 <span class="hint">(선택)</span></h2>
       <p class="hint" id="key-state"></p>
       <label for="apikey">API 키 (sk-ant- 로 시작)</label>
       <div class="row">
@@ -219,7 +223,7 @@
       <div class="msg" id="key-msg"></div>
       <p class="hint" style="margin-top:14px">키 받는 방법</p>
       <ol class="steps">
-        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> 에 가입·로그인</li>
+        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> 에 가입·로그인 (Claude 구독과는 따로 결제하는 곳이에요)</li>
         <li>왼쪽 메뉴 <b>Billing</b> 에서 크레딧 충전 (꿈 분석 1번에 대략 100~200원, 5달러면 꿈 40개쯤)</li>
         <li><b>API Keys</b> → <b>Create Key</b> → 나온 키를 복사해서 위 칸에 붙여 넣고 저장</li>
       </ol>
@@ -503,7 +507,7 @@ function reportHtml({ psych, sky }, streaming = false) {
   let skyInner;
   if (sky) skyInner = renderMarkdown(sky) + (streaming ? WRITING : '');
   else if (streaming) skyInner = '<p class="hint">분석심리학 풀이를 다 쓰면 이어서 쓸게요.</p>';
-  else skyInner = '<p class="hint">이 꿈은 예전 방식으로 분석해서 천궁도 풀이가 따로 없어요. [🔁 다시 분석]을 누르면 생겨요.</p>';
+  else skyInner = '<p class="hint">이 꿈은 예전 방식으로 분석해서 천궁도 풀이가 따로 없어요. [🔁 다시 분석]이나 [📋 Claude에게 물어볼 글 복사]로 다시 분석하면 생겨요.</p>';
   return card('🌗', '분석심리학 풀이', '융의 눈으로 본 마음', psychInner) + card('🔮', '천궁도 풀이', '꿈꾼 순간의 하늘과 꿈', skyInner);
 }
 
@@ -511,6 +515,67 @@ async function streamReport(path, bodyEl) {
   bodyEl.innerHTML = reportHtml({ psych: '', sky: '' }, true);
   const text = await streamText(path, (t) => { bodyEl.innerHTML = reportHtml(parseReport(t), true); });
   bodyEl.innerHTML = reportHtml(parseReport(text));
+}
+
+// ---------- claude.ai 로 분석하기 (복사 → 붙여넣기) ----------
+const CLAUDE_URL = 'https://claude.ai/new';
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (!ok) throw new Error('복사하지 못했어요. 다시 한 번 눌러 주세요.');
+  }
+}
+
+async function copyAskText(id) {
+  const { text } = await api(`/api/dreams/${id}/prompt`);
+  await copyText(text);
+  window.open(CLAUDE_URL, '_blank', 'noopener');
+}
+
+// 붙여넣기 칸: 저장되면 onSaved(꿈) 호출
+function pasteCardHtml() {
+  return `<div class="card paste-card">
+    <h2>📋 claude.ai 에서 수사 받기</h2>
+    <ol>
+      <li><b>물어볼 글을 복사했어요.</b> 새로 열린 claude.ai 창의 대화 칸에 <b>Ctrl+V</b> 로 붙여 넣고 보내세요.</li>
+      <li>Claude 의 답이 다 나오면, 답 아래의 <b>복사</b> 버튼(📋)을 눌러요.</li>
+      <li>아래 칸에 <b>Ctrl+V</b> 로 붙여 넣고 <b>[📥 보고서 저장]</b>을 눌러요.</li>
+    </ol>
+    <div class="actions" style="margin:0 0 10px">
+      <button class="btn ghost small" data-act="recopy">📋 다시 복사</button>
+      <button class="btn ghost small" data-act="open">🌐 claude.ai 열기</button>
+    </div>
+    <textarea data-act="answer" placeholder="여기에 Claude 의 답을 붙여 넣어 주세요"></textarea>
+    <div class="actions"><button class="btn" data-act="save">📥 보고서 저장</button></div>
+    <div class="msg" data-act="msg"></div>
+  </div>`;
+}
+
+function wirePasteCard(container, id, onSaved) {
+  const q = (act) => container.querySelector(`[data-act="${act}"]`);
+  q('recopy').onclick = async () => {
+    try { await copyText((await api(`/api/dreams/${id}/prompt`)).text); showMsg(q('msg'), '다시 복사했어요.', 'ok'); }
+    catch (err) { showMsg(q('msg'), err.message, 'err'); }
+  };
+  q('open').onclick = () => window.open(CLAUDE_URL, '_blank', 'noopener');
+  q('save').onclick = async () => {
+    const btn = q('save');
+    btn.disabled = true;
+    try {
+      const { dream } = await api(`/api/dreams/${id}/report`, { method: 'POST', body: JSON.stringify({ text: q('answer').value }) });
+      await onSaved(dream);
+    } catch (err) {
+      showMsg(q('msg'), err.message, 'err');
+      btn.disabled = false;
+    }
+  };
 }
 
 async function saveDream() {
@@ -546,7 +611,7 @@ $('investigate').onclick = async () => {
   const btn = $('investigate');
   showMsg($('write-msg'), '');
   if (!status.hasKey) {
-    showMsg($('write-msg'), 'Claude API 키가 아직 없어요. ⚙️ 설정에서 키를 넣거나, [일기에만 저장]을 눌러 주세요.', 'err');
+    showMsg($('write-msg'), 'Claude API 키가 아직 없어요. [📋 Claude에게 물어볼 글 복사]로 Claude 구독을 써서 분석하거나, ⚙️ 설정에서 API 키를 넣어 주세요.', 'err');
     return;
   }
   btn.disabled = true;
@@ -566,6 +631,31 @@ $('investigate').onclick = async () => {
   } catch (err) {
     showMsg($('write-msg'), err.message + (dream ? ' (꿈 내용은 일기에 저장되어 있어요.)' : ''), 'err');
     if (dream) { $('result').hidden = true; await loadDreams(); }
+  } finally { btn.disabled = false; }
+};
+
+$('copy-ask').onclick = async () => {
+  const btn = $('copy-ask');
+  showMsg($('write-msg'), '');
+  btn.disabled = true;
+  try {
+    const dream = await saveDream();
+    resetForm();
+    await copyAskText(dream.id);
+    $('result').hidden = false;
+    $('result-title').textContent = '🕵️ 부엉의 수사 보고서';
+    $('result-body').innerHTML = pasteCardHtml();
+    wirePasteCard($('result-body'), dream.id, async (saved) => {
+      $('result-title').textContent = saved.title ? `🕵️ 사건 파일: 「${saved.title}」` : '🕵️ 부엉의 수사 보고서';
+      $('result-body').innerHTML = reportHtml({ psych: saved.analysis, sky: saved.skyAnalysis || '' });
+      say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
+      await loadDreams();
+    });
+    say('claude.ai 에 붙여 넣어 주세요. 답을 기다릴게요! 🦉');
+    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    showMsg($('write-msg'), err.message, 'err');
+    await loadDreams();
   } finally { btn.disabled = false; }
 };
 
@@ -612,6 +702,7 @@ function openDream(id) {
         <div class="tags" style="margin-top:10px">${(d.keywords || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}${(d.moods || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}</div>
         <div class="actions">
           <button class="btn small" id="reanalyze">${d.analysis ? '🔁 다시 분석' : '🔍 부엉에게 맡기기'}</button>
+          <button class="btn ghost small" id="detail-copy">📋 Claude에게 물어볼 글 복사</button>
           <button class="btn danger small" id="del">🗑️ 삭제</button>
         </div>
         <div class="msg" id="detail-msg"></div>
@@ -619,12 +710,21 @@ function openDream(id) {
       <div class="card"><h2>✨ 꿈꾼 순간의 하늘</h2>${chartBlock(d.chart)}</div>
     </div>
     <h2 class="report-title">🕵️ 부엉의 수사 보고서</h2>
-    <div id="detail-body">${d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '<div class="card"><p class="hint">아직 분석 전이에요. [🔍 부엉에게 맡기기]를 눌러 주세요.</p></div>'}</div>`;
+    <div id="detail-body">${d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '<div class="card"><p class="hint">아직 분석 전이에요. [🔍 부엉에게 맡기기]나 [📋 Claude에게 물어볼 글 복사]를 눌러 주세요.</p></div>'}</div>`;
   $('back').onclick = closeDream;
   $('del').onclick = async () => {
     if (!confirm('이 꿈 기록을 지울까요? 지우면 되돌릴 수 없어요.')) return;
     try { await api(`/api/dreams/${id}`, { method: 'DELETE' }); await loadDreams(); closeDream(); }
     catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
+  };
+  $('detail-copy').onclick = async () => {
+    showMsg($('detail-msg'), '');
+    try {
+      await copyAskText(id);
+      $('detail-body').innerHTML = pasteCardHtml();
+      wirePasteCard($('detail-body'), id, async () => { await loadDreams(); openDream(id); });
+      $('detail-body').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
   };
   $('reanalyze').onclick = async () => {
     const btn = $('reanalyze');
@@ -687,7 +787,7 @@ async function loadStatus() {
   $('build').textContent = `빌드 ${status.build}`;
   $('key-state').textContent = status.hasKey
     ? (status.keyFromEnv ? '✅ 컴퓨터 환경변수(ANTHROPIC_API_KEY)의 키를 쓰고 있어요.' : `✅ 키가 저장되어 있어요: ${status.maskedKey}`)
-    : '❗ 아직 키가 없어요. 꿈 분석을 하려면 Claude API 키가 필요해요.';
+    : '아직 키가 없어요. 키가 없어도 [📋 Claude에게 물어볼 글 복사]로 Claude 구독을 써서 분석할 수 있어요. 버튼 한 번에 바로 분석받고 싶으면 API 키를 넣어 주세요.';
   $('model-line').textContent = `분석 모델: ${status.model}`;
 }
 $('save-key').onclick = async () => {
@@ -729,7 +829,7 @@ try {
   $('when').value = localNow();
   updatePreview();
   await loadDreams();
-  if (!status.hasKey) say('처음 오셨군요! ⚙️ 설정에서 Claude API 키를 넣으면 제가 꿈을 수사할 수 있어요.');
+  if (!status.hasKey) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
 } catch (err) {
   say('서버와 연결이 안 돼요. 검은 창(꿈탐정)이 켜져 있는지 확인해 주세요.');
 }

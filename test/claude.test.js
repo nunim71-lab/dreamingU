@@ -83,3 +83,36 @@ test('dream prompt includes the dream, moods, chart and recent dreams', () => {
   assert.match(prompt, /- 달: /);
   assert.match(prompt, /「바다의 집」/);
 });
+
+test('paste prompt asks for 【】 markers instead of tags', async () => {
+  const { buildPastePrompt } = await import('../src/claude.js');
+  const chart = computeChart(new Date(Date.UTC(2026, 10, 9, 22, 30)), { lat: 37.5665, lon: 126.978, name: '서울' });
+  const text = buildPastePrompt({ id: 'a', text: '고래를 탔어요', moods: [], dreamAtLocal: '2026-11-10T07:30', tzOffset: 9, chart });
+  assert.doesNotMatch(text, /<\/?(분석심리학|천궁도|제목|키워드)>/);
+  for (const mark of ['【분석심리학】', '【천궁도】', '【제목】', '【키워드】']) assert.ok(text.includes(mark), mark);
+  assert.match(text, /꿈탐정 부엉/);
+  assert.match(text, /고래를 탔어요/);
+  assert.match(text, /- 달: /);
+});
+
+test('parseReport reads answers copied from claude.ai', () => {
+  // ① 복사 버튼으로 가져온 마크다운 그대로
+  const raw = '【분석심리학】\n## 🔍 꿈 한눈에 보기\n고래를 탄 꿈이에요.\n\n【천궁도】\n## 🌙 그날 밤의 달\n달이 물고기자리에 있었어요.\n\n【제목】 고래와 함께\n【키워드】 고래, 바다, 여행';
+  assert.deepEqual(parseReport(raw), {
+    psych: '## 🔍 꿈 한눈에 보기\n고래를 탄 꿈이에요.',
+    sky: '## 🌙 그날 밤의 달\n달이 물고기자리에 있었어요.',
+    title: '고래와 함께',
+    keywords: ['고래', '바다', '여행'],
+  });
+  // ② 마우스로 긁어 복사해서 꾸밈이 붙거나 빠진 경우, 제목이 다음 줄에 온 경우, 윈도우 줄바꿈
+  const messy = '**【분석심리학】**\r\n🔍 꿈 한눈에 보기\r\n고래를 탄 꿈이에요.\r\n## 【천궁도】\r\n🌙 그날 밤의 달\r\n달이 밝았어요.\r\n【제목】\r\n고래와 함께\r\n【키워드】: 고래, 바다';
+  const r = parseReport(messy);
+  assert.equal(r.psych, '🔍 꿈 한눈에 보기\n고래를 탄 꿈이에요.');
+  assert.equal(r.sky, '🌙 그날 밤의 달\n달이 밝았어요.');
+  assert.equal(r.title, '고래와 함께');
+  assert.deepEqual(r.keywords, ['고래', '바다']);
+  // ③ 표시 줄이 다 빠졌어도 천궁도 쪽 제목에서 나눔
+  const bare = parseReport('## 🔍 꿈 한눈에 보기\n고래 꿈.\n## 🌙 그날 밤의 달\n달이 밝았어요.');
+  assert.equal(bare.psych, '## 🔍 꿈 한눈에 보기\n고래 꿈.');
+  assert.equal(bare.sky, '## 🌙 그날 밤의 달\n달이 밝았어요.');
+});

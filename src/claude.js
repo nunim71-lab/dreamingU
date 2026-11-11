@@ -101,6 +101,19 @@ export function buildPatternPrompt(dreams, stats) {
 
 export { parseReport } from './report.js';
 
+// claude.ai 에 붙여 넣을 한 덩어리 글 (API 대신 Claude 구독으로 분석할 때)
+// 화면에서 복사할 때 <꼬리표> 가 사라질 수 있어서, 【분석심리학】 같은 표시 줄로 바꿔서 부탁함
+export function buildPastePrompt(dream, recentDreams = []) {
+  const system = DETECTIVE_SYSTEM
+    .replace('꼬리표(<분석심리학> 등)도 그대로 씁니다.', '【분석심리학】 같은 표시 줄도 그대로, 한 줄에 따로 씁니다.')
+    .replace('<분석심리학>\n', '【분석심리학】\n')
+    .replace('</분석심리학>\n<천궁도>\n', '【천궁도】\n')
+    .replace('</천궁도>\n', '')
+    .replace(/<제목>(.*)<\/제목>/, '【제목】 $1')
+    .replace(/<키워드>(.*)<\/키워드>/, '【키워드】 $1');
+  return `${system}\n\n인사말이나 덧붙이는 말 없이, 위 틀대로 보고서만 써 주세요.\n\n━━━━━━━━━━\n\n${buildDreamPrompt(dream, recentDreams)}`;
+}
+
 export class ClaudeError extends Error {
   constructor(message, status = 502) {
     super(message);

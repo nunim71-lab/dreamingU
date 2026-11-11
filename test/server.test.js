@@ -87,6 +87,26 @@ test('reports Claude failures inside the stream and keeps the dream', async () =
   });
 });
 
+test('copy-and-paste analysis works without an API key', async () => {
+  await withServer({}, async (base) => {
+    const { dream } = await (await json(base, '/api/dreams', DREAM)).json();
+    const { text } = await (await fetch(`${base}/api/dreams/${dream.id}/prompt`)).json();
+    assert.match(text, /하늘을 나는 꿈/);
+    assert.match(text, /【천궁도】/);
+
+    assert.equal((await json(base, `/api/dreams/${dream.id}/report`, { text: '' })).status, 400);
+    assert.equal((await json(base, `/api/dreams/${dream.id}/report`, { text: '네 알겠습니다' })).status, 400);
+    const answer = '【분석심리학】\n## 🔍 꿈 한눈에 보기\n하늘을 나는 꿈은 자유롭고 싶은 마음을 보여 줄 수 있어요.\n【천궁도】\n## 🌙 그날 밤의 달\n달이 밝았어요.\n【제목】 하늘 산책\n【키워드】 하늘, 날기';
+    const saved = await (await json(base, `/api/dreams/${dream.id}/report`, { text: answer })).json();
+    assert.equal(saved.dream.title, '하늘 산책');
+    assert.equal(saved.dream.analyzedVia, 'paste');
+    const { dreams } = await (await fetch(base + '/api/dreams')).json();
+    assert.equal(dreams[0].skyAnalysis, '## 🌙 그날 밤의 달\n달이 밝았어요.');
+    assert.deepEqual(dreams[0].keywords, ['하늘', '날기']);
+    assert.equal((await fetch(`${base}/api/dreams/nope/prompt`)).status, 404);
+  });
+});
+
 test('validates input, blocks other websites and deletes dreams', async () => {
   await withServer({}, async (base) => {
     assert.equal((await json(base, '/api/dreams', { ...DREAM, text: ' ' })).status, 400);
