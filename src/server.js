@@ -91,7 +91,7 @@ function statsText(stats) {
 
 const maskKey = (key) => (key ? `${key.slice(0, 7)}…${key.slice(-4)}` : '');
 
-export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = askClaude, env = process.env } = {}) {
+export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = askClaude, env = process.env, onShutdown = () => {} } = {}) {
   const store = createStore(dataDir);
   let dreams = await store.loadDreams();
   let settings = await store.loadSettings();
@@ -255,6 +255,17 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         });
       }
 
+      // 새 버전이 켜질 때 예전 꿈탐정을 끄라고 부탁함 (1.9부터)
+      if (req.method === 'POST' && url.pathname === '/api/shutdown') {
+        await readJson(req);
+        sendJson(res, 200, { ok: true, build: BUILD });
+        res.on('finish', () => setTimeout(onShutdown, 100));
+        return;
+      }
+
+      if (url.pathname.startsWith('/api/')) {
+        throw new RequestError('이 기능을 찾지 못했어요. 꿈탐정을 새 버전으로 바꿨다면, 작업 표시줄의 꿈탐정 검은 창을 닫고 부엉 아이콘으로 다시 켜 주세요.', 404);
+      }
       throw new RequestError('없는 페이지입니다.', 404);
     } catch (err) {
       if (res.headersSent) return res.end();
@@ -284,25 +295,57 @@ function openBrowser(address) {
   spawn(opener[0], opener[1], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
 }
 
+// 이미 3100번에 무언가 켜져 있을 때: 같은 빌드면 그 화면을 열고, 예전 빌드면 끄고 새 버전으로 바꿔 켬
+async function takeOver(address) {
+  let running = null;
+  try { running = await (await fetch(`${address}/api/status`)).json(); } catch { /* 꿈탐정이 아님 */ }
+  if (!running?.build) return { action: 'foreign' };
+  if (running.build === BUILD) return { action: 'same' };
+  try {
+    const res = await fetch(`${address}/api/shutdown`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (res.ok) return { action: 'replaced', old: running.build };
+  } catch { /* 예전 버전은 끄는 기능이 없음 */ }
+  return { action: 'old', old: running.build };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 3100);
   const host = '127.0.0.1'; // 이 컴퓨터에서만 열림 (꿈은 개인적인 기록이니까)
   const address = `http://${host}:${port}`;
-  const server = await createServer();
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`꿈탐정이 이미 켜져 있어요. 브라우저에서 ${address} 를 열어 주세요.`);
-      openBrowser(address);
-      setTimeout(() => process.exit(0), 1500);
-    } else {
-      console.error(err);
-      process.exit(1);
-    }
-  });
-  server.listen(port, host, () => {
+  let server;
+  server = await createServer({ onShutdown: () => { console.log('새 버전 꿈탐정이 켜져서 이 창은 닫혀요.'); server.close(); process.exit(0); } });
+  let retried = false;
+  server.once('listening', () => {
     console.log(`꿈탐정 부엉 (빌드 ${BUILD}) 실행 중: ${address}`);
     console.log('이 창을 닫으면 꿈탐정도 꺼집니다.');
     openBrowser(address);
   });
+  const listen = () => server.listen(port, host);
+  server.on('error', async (err) => {
+    if (err.code !== 'EADDRINUSE' || retried) {
+      if (err.code === 'EADDRINUSE') console.log('예전 꿈탐정이 아직 꺼지지 않았어요. 잠시 뒤 부엉 아이콘을 다시 눌러 주세요.');
+      else console.error(err);
+      process.exit(1);
+    }
+    const result = await takeOver(address);
+    if (result.action === 'same') {
+      console.log(`꿈탐정이 이미 켜져 있어요. 브라우저에서 ${address} 를 열어 주세요.`);
+      openBrowser(address);
+      setTimeout(() => process.exit(0), 1500);
+    } else if (result.action === 'replaced') {
+      console.log(`예전 꿈탐정(빌드 ${result.old})을 끄고 새 버전(빌드 ${BUILD})으로 켤게요…`);
+      retried = true;
+      setTimeout(listen, 1000);
+    } else if (result.action === 'old') {
+      console.log(`예전 꿈탐정(빌드 ${result.old})이 아직 켜져 있어요.`);
+      console.log('작업 표시줄에서 예전 꿈탐정의 검은 창을 찾아 닫은 뒤, 부엉 아이콘을 다시 눌러 주세요.');
+      console.log('(창을 못 찾겠으면 컴퓨터를 다시 시작해도 돼요)');
+      openBrowser(address); // 같은 폴더에 덮어썼다면 화면 위쪽에도 안내가 보임
+      setTimeout(() => process.exit(1), 1500);
+    } else {
+      console.log(`${port}번 주소를 다른 프로그램이 쓰고 있어요. 컴퓨터를 다시 시작한 뒤 꿈탐정을 켜 주세요.`);
+      process.exit(1);
+    }
+  });
+  listen();
 }
-

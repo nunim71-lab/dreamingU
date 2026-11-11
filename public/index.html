@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="/icon.png?v=1.8">
+<link rel="icon" href="/icon.png?v=1.9">
 <style>
   :root {
     --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
@@ -86,6 +86,7 @@
   .report-part h2 small { font-size: 12px; color: var(--muted); font-weight: normal; margin-left: 6px; }
   .paste-card ol { padding-left: 20px; margin: 6px 0 10px; font-size: 14px; }
   .paste-card textarea { min-height: 160px; }
+  .warn { border-color: var(--red); color: var(--text); background: #3a1830; }
   .analysis { font-size: 15px; }
   .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
   .analysis h3:first-child { margin-top: 0; }
@@ -121,10 +122,12 @@
 <body>
 <div class="app">
   <header>
-    <img src="/icon.png?v=1.8" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="/icon.png?v=1.9" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
+
+  <div class="card warn" id="version-warn" hidden></div>
 
   <nav>
     <button data-tab="write" class="on">✍️ 꿈 기록</button>
@@ -784,6 +787,12 @@ $('pattern-go').onclick = async () => {
 // ---------- 설정 탭 ----------
 async function loadStatus() {
   status = await api('/api/status');
+  // 화면은 새것인데 꿈탐정 프로그램은 예전 것으로 켜져 있으면 알려 줌
+  const pageBuild = new URL(document.querySelector('link[rel=icon]').href).searchParams.get('v');
+  if (pageBuild && status.build !== pageBuild) {
+    $('version-warn').hidden = false;
+    $('version-warn').innerHTML = `⚠️ <b>꿈탐정을 다시 켜 주세요.</b> 화면은 새 버전(빌드 ${esc(pageBuild)})인데, 꿈탐정 프로그램은 예전 버전(빌드 ${esc(status.build)})으로 켜져 있어요.<br>작업 표시줄의 꿈탐정 <b>검은 창을 닫고</b>, 바탕화면의 <b>부엉 아이콘</b>을 다시 눌러 주세요. 그러기 전에는 일부 버튼이 "찾지 못했어요" 라고 나올 수 있어요.`;
+  }
   $('build').textContent = `빌드 ${status.build}`;
   $('key-state').textContent = status.hasKey
     ? (status.keyFromEnv ? '✅ 컴퓨터 환경변수(ANTHROPIC_API_KEY)의 키를 쓰고 있어요.' : `✅ 키가 저장되어 있어요: ${status.maskedKey}`)

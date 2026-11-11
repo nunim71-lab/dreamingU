@@ -107,6 +107,20 @@ test('copy-and-paste analysis works without an API key', async () => {
   });
 });
 
+test('unknown features explain how to restart, and shutdown asks the app to close', async () => {
+  let closed = 0;
+  await withServer({ onShutdown: () => { closed++; } }, async (base) => {
+    const missing = await fetch(`${base}/api/something-new`);
+    assert.equal(missing.status, 404);
+    assert.match((await missing.json()).error, /다시 켜 주세요/);
+    assert.equal((await fetch(`${base}/api/shutdown`, { method: 'POST' })).status, 415, 'JSON 이 아니면 거절');
+    const res = await json(base, '/api/shutdown', {});
+    assert.equal(res.status, 200);
+    await new Promise((r) => setTimeout(r, 250));
+    assert.equal(closed, 1);
+  });
+});
+
 test('validates input, blocks other websites and deletes dreams', async () => {
   await withServer({}, async (base) => {
     assert.equal((await json(base, '/api/dreams', { ...DREAM, text: ' ' })).status, 400);
