@@ -1,46 +1,37 @@
 #!/usr/bin/env node
-// 꿈탐정 웹 서버: 이 컴퓨터에서만 열리는 작은 서버. 꿈을 기록하고, 별자리 차트를 그리고, Claude 에게 꿈 분석을 맡김.
+// 꿈탐정 컴퓨터 버전: 이 컴퓨터에서만 열리는 작은 서버. 화면은 docs 폴더(휴대폰 버전과 같은 화면),
+// 꿈 일기는 data 폴더에 저장. 꿈 저장·분석 같은 두뇌는 docs/js/app.js 를 휴대폰 버전과 함께 씀.
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { computeChart, localToDate } from './astro.js';
-import { DEFAULT_MODEL, DETECTIVE_SYSTEM, PATTERN_SYSTEM, askClaude, buildDreamPrompt, buildPastePrompt, buildPatternPastePrompt, buildPatternPrompt, parseReport } from './claude.js';
+import { RequestError, createApp } from '../docs/js/app.js';
+import { askClaude } from '../docs/js/claude.js';
 import { createStore } from './store.js';
 
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-// 빌드 번호: 업데이트할 때마다 package.json 의 build 끝자리를 1씩 올림
+const WEB = path.join(ROOT, 'docs');
+// 빌드 번호: 업데이트할 때마다 package.json 의 build 를 올림 (1.10 → 1.11 …)
 export const BUILD = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).build;
 
 const MAX_BODY_BYTES = 1024 * 1024;
-const MAX_DREAM_CHARS = 20000;
-const MAX_REPORT_CHARS = 60000; // 붙여 넣는 수사 보고서
-const PATTERN_LIMIT = 40; // 종합 분석에 보내는 최근 꿈 수
+const MAX_IMPORT_BYTES = 50 * 1024 * 1024; // 꿈 일기 가져오기 파일
 
-const FILES = {
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/icon.png': ['icon.png', 'image/png'],
-  '/astro.js': ['../src/astro.js', 'text/javascript; charset=utf-8'],
-  '/reading.js': ['../src/reading.js', 'text/javascript; charset=utf-8'],
-  '/report.js': ['../src/report.js', 'text/javascript; charset=utf-8'],
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
-
-class RequestError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
 
 function sendJson(res, status, data) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
 }
 
-async function readJson(req) {
+async function readJson(req, limit = MAX_BODY_BYTES) {
   if (!String(req.headers['content-type'] || '').includes('application/json')) {
     throw new RequestError('요청 형식이 올바르지 않습니다.', 415);
   }
@@ -48,7 +39,7 @@ async function readJson(req) {
   const chunks = [];
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw new RequestError('글이 너무 길어요.', 413);
+    if (size > limit) throw new RequestError(limit > MAX_BODY_BYTES ? '파일이 너무 커요.' : '글이 너무 길어요.', 413);
     chunks.push(chunk);
   }
   try {
@@ -58,61 +49,25 @@ async function readJson(req) {
   }
 }
 
-function parsePlace(place) {
-  const lat = Number(place?.lat);
-  const lon = Number(place?.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 66 || Math.abs(lon) > 180) {
-    throw new RequestError('장소의 위도·경도가 올바르지 않아요. (위도는 -66 ~ 66 사이)');
-  }
-  return { lat, lon, name: String(place?.name || '').slice(0, 40) };
+// docs 폴더의 화면 파일만 내보냄 (sw.js 는 휴대폰 버전 전용이라 컴퓨터에서는 쓰지 않음)
+function staticFile(pathname) {
+  const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
+  if (rel === 'sw.js' || !/^[\w./-]+$/.test(rel) || rel.split('/').some((part) => part === '..' || part.startsWith('.'))) return null;
+  const type = TYPES[path.extname(rel)];
+  return type ? { file: path.join(WEB, rel), type } : null;
 }
-
-export function makeStats(dreams) {
-  const count = (items) => {
-    const map = new Map();
-    for (const it of items) map.set(it, (map.get(it) || 0) + 1);
-    return [...map].sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n }));
-  };
-  const moonOf = (d) => d.chart.planets.find((p) => p.key === 'moon').sign.name;
-  return {
-    total: dreams.length,
-    analyzed: dreams.filter((d) => d.analysis).length,
-    keywords: count(dreams.flatMap((d) => d.keywords || [])).slice(0, 15),
-    moods: count(dreams.flatMap((d) => d.moods || [])),
-    moonSigns: count(dreams.map(moonOf)),
-    moonPhases: count(dreams.map((d) => d.chart.moonPhase.name)),
-  };
-}
-
-function statsText(stats) {
-  const fmt = (list) => list.map((x) => `${x.name} ${x.n}번`).join(', ') || '-';
-  return `- 자주 나온 상징: ${fmt(stats.keywords)}\n- 꿈속 기분: ${fmt(stats.moods)}\n- 꿈꾼 날 달의 별자리: ${fmt(stats.moonSigns)}\n- 꿈꾼 날 달의 모양: ${fmt(stats.moonPhases)}`;
-}
-
-const maskKey = (key) => (key ? `${key.slice(0, 7)}…${key.slice(-4)}` : '');
 
 export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = askClaude, env = process.env, onShutdown = () => {} } = {}) {
-  const store = createStore(dataDir);
-  let dreams = await store.loadDreams();
-  let settings = await store.loadSettings();
-  const apiKey = () => settings.apiKey || env.ANTHROPIC_API_KEY || '';
-  const model = () => settings.model || DEFAULT_MODEL;
-  const sortDreams = () => dreams.sort((a, b) => b.dreamAt.localeCompare(a.dreamAt));
-  const findDream = (id) => {
-    const dream = dreams.find((d) => d.id === id);
-    if (!dream) throw new RequestError('그 꿈 기록을 찾을 수 없어요.', 404);
-    return dream;
-  };
+  const app = await createApp({ store: createStore(dataDir), ask, envKey: env.ANTHROPIC_API_KEY || '', build: BUILD, mode: 'server' });
 
   // Claude 의 글을 브라우저로 흘려보냄 (글자 그대로). 실패하면 마지막에 \u0000오류 표시를 붙임
-  // onDone(전체 글) 은 응답을 닫기 전에 실행: 브라우저가 다시 불러올 때 이미 저장되어 있게
-  async function stream(res, system, prompt, onDone) {
+  // 저장(onDone)은 응답을 닫기 전에 끝냄: 브라우저가 다시 불러올 때 이미 저장되어 있게
+  async function stream(res, job) {
     const controller = new AbortController();
     res.on('close', () => { if (!res.writableEnded) controller.abort(); });
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     try {
-      const text = await ask({ apiKey: apiKey(), model: model(), system, prompt, signal: controller.signal, onText: (t) => res.write(t) });
-      await onDone(text);
+      await app.runStream(job, (t) => res.write(t), controller.signal);
     } catch (err) {
       if (err.name !== 'AbortError') res.write(`\u0000${err.message}`);
     } finally {
@@ -129,149 +84,13 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         throw new RequestError('허용되지 않은 요청입니다.', 403);
       }
 
-      if (req.method === 'GET' && FILES[url.pathname]) {
-        const [name, type] = FILES[url.pathname];
-        res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
-        return res.end(await readFile(path.join(ROOT, 'public', name)));
-      }
-
-      if (req.method === 'GET' && url.pathname === '/api/status') {
-        return sendJson(res, 200, {
-          build: BUILD,
-          hasKey: Boolean(apiKey()),
-          keyFromEnv: !settings.apiKey && Boolean(env.ANTHROPIC_API_KEY),
-          maskedKey: maskKey(settings.apiKey || ''),
-          model: model(),
-          place: settings.place || null,
-          tzOffset: settings.tzOffset ?? 9,
-        });
-      }
-
-      if (req.method === 'POST' && url.pathname === '/api/settings') {
-        const body = await readJson(req);
-        const next = { ...settings };
-        if (typeof body.apiKey === 'string') {
-          const key = body.apiKey.trim();
-          if (key && !/^sk-ant-[\w-]{10,}$/.test(key)) throw new RequestError('API 키 모양이 이상해요. sk-ant- 로 시작하는 키 전체를 붙여 넣어 주세요.');
-          next.apiKey = key;
-        }
-        if (body.place) next.place = parsePlace(body.place);
-        if (body.tzOffset !== undefined) {
-          const tz = Number(body.tzOffset);
-          if (!Number.isFinite(tz) || tz < -12 || tz > 14) throw new RequestError('시간대가 올바르지 않아요.');
-          next.tzOffset = tz;
-        }
-        settings = next;
-        await store.saveSettings(settings);
-        return sendJson(res, 200, { ok: true });
-      }
-
-      if (req.method === 'GET' && url.pathname === '/api/dreams') {
-        return sendJson(res, 200, { dreams });
-      }
-
-      if (req.method === 'POST' && url.pathname === '/api/dreams') {
-        const body = await readJson(req);
-        const text = String(body.text || '').trim();
-        if (!text) throw new RequestError('꿈 내용을 적어 주세요.');
-        if (text.length > MAX_DREAM_CHARS) throw new RequestError(`꿈 내용이 너무 길어요 (최대 ${MAX_DREAM_CHARS.toLocaleString()}자).`);
-        const tzOffset = Number(body.tzOffset ?? 9);
-        if (!Number.isFinite(tzOffset) || tzOffset < -12 || tzOffset > 14) throw new RequestError('시간대가 올바르지 않아요.');
-        const when = localToDate(body.dreamAtLocal, tzOffset);
-        if (!when || when.getUTCFullYear() < 1900 || when.getUTCFullYear() > 2099) throw new RequestError('꿈꾼 날짜와 시간을 확인해 주세요 (1900~2099년).');
-        const place = parsePlace(body.place);
-        const dream = {
-          id: randomUUID(),
-          text,
-          note: String(body.note || '').trim().slice(0, 2000),
-          moods: Array.isArray(body.moods) ? body.moods.map(String).slice(0, 10) : [],
-          dreamAtLocal: String(body.dreamAtLocal).slice(0, 16),
-          tzOffset,
-          dreamAt: when.toISOString(),
-          recordedAt: new Date().toISOString(),
-          chart: computeChart(when, place),
-          title: '',
-          keywords: [],
-          analysis: '',
-          skyAnalysis: '',
-        };
-        dreams.push(dream);
-        sortDreams();
-        await store.saveDreams(dreams);
-        return sendJson(res, 200, { dream });
-      }
-
-      const m = /^\/api\/dreams\/([\w-]+)(\/analyze|\/prompt|\/report)?$/.exec(url.pathname);
-      const saveReport = async (dream, text, via) => {
-        const { psych, sky, title, keywords } = parseReport(text);
-        Object.assign(dream, { analysis: psych, skyAnalysis: sky, title: title || dream.title, keywords: keywords.length ? keywords : dream.keywords, analyzedAt: new Date().toISOString(), analyzedVia: via });
-        await store.saveDreams(dreams);
-      };
-
-      // claude.ai 에 붙여 넣을 글 (API 키 없어도 됨)
-      if (m && req.method === 'GET' && m[2] === '/prompt') {
-        const dream = findDream(m[1]);
-        return sendJson(res, 200, { text: buildPastePrompt(dream, dreams) });
-      }
-
-      // claude.ai 에서 받은 답을 붙여 넣어 저장
-      if (m && req.method === 'POST' && m[2] === '/report') {
-        const body = await readJson(req);
-        const dream = findDream(m[1]);
-        const text = String(body.text || '').trim();
-        if (!text) throw new RequestError('Claude 의 답을 붙여 넣어 주세요.');
-        if (text.length > MAX_REPORT_CHARS) throw new RequestError('붙여 넣은 글이 너무 길어요. Claude 의 답만 복사해 주세요.');
-        const { psych } = parseReport(text);
-        if (psych.length < 30) throw new RequestError('수사 보고서가 아닌 것 같아요. Claude 의 답 전체를 복사해서 붙여 넣어 주세요.');
-        await saveReport(dream, text, 'paste');
-        return sendJson(res, 200, { dream });
-      }
-      if (m && req.method === 'DELETE' && !m[2]) {
-        findDream(m[1]);
-        dreams = dreams.filter((d) => d.id !== m[1]);
-        await store.saveDreams(dreams);
-        return sendJson(res, 200, { ok: true });
-      }
-
-      if (m && req.method === 'POST' && m[2] === '/analyze') {
-        await readJson(req);
-        const dream = findDream(m[1]);
-        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. ⚙️ 설정에서 키를 넣거나, [📋 Claude에게 물어볼 글 복사] 를 써 주세요.');
-        return stream(res, DETECTIVE_SYSTEM, buildDreamPrompt(dream, dreams), (text) => saveReport(dream, text, 'api'));
-      }
-
-      if (req.method === 'GET' && url.pathname === '/api/patterns') {
-        return sendJson(res, 200, { stats: makeStats(dreams), last: settings.lastPattern || null });
-      }
-
-      const needTwoDreams = () => {
-        if (dreams.length < 2) throw new RequestError('꿈이 2개 이상 모이면 종합 분석을 할 수 있어요.');
-        return dreams.slice(0, PATTERN_LIMIT).reverse();
-      };
-      const savePattern = async (text, count, via) => {
-        settings = { ...settings, lastPattern: { text: text.trim(), at: new Date().toISOString(), count, via } };
-        await store.saveSettings(settings);
-      };
-
-      if (req.method === 'POST' && url.pathname === '/api/patterns') {
-        await readJson(req);
-        const recent = needTwoDreams();
-        if (!apiKey()) throw new RequestError('Claude API 키가 아직 없어요. [📋 Claude에게 물어볼 글 복사]로 Claude 구독을 써서 분석하거나, ⚙️ 설정에서 API 키를 넣어 주세요.');
-        return stream(res, PATTERN_SYSTEM, buildPatternPrompt(recent, statsText(makeStats(recent))), (text) => savePattern(text, recent.length, 'api'));
-      }
-
-      // 종합 분석도 claude.ai 로 (복사 → 붙여넣기)
-      if (req.method === 'GET' && url.pathname === '/api/patterns/prompt') {
-        const recent = needTwoDreams();
-        return sendJson(res, 200, { text: buildPatternPastePrompt(recent, statsText(makeStats(recent))) });
-      }
-      if (req.method === 'POST' && url.pathname === '/api/patterns/report') {
-        const body = await readJson(req);
-        const text = String(body.text || '').trim();
-        if (text.length < 30) throw new RequestError('Claude 의 답 전체를 복사해서 붙여 넣어 주세요.');
-        if (text.length > MAX_REPORT_CHARS) throw new RequestError('붙여 넣은 글이 너무 길어요. Claude 의 답만 복사해 주세요.');
-        await savePattern(text, Math.min(dreams.length, PATTERN_LIMIT), 'paste');
-        return sendJson(res, 200, { last: settings.lastPattern });
+      if (req.method === 'GET' && !url.pathname.startsWith('/api/')) {
+        const found = staticFile(url.pathname);
+        if (!found) throw new RequestError('없는 페이지입니다.', 404);
+        let data;
+        try { data = await readFile(found.file); } catch { throw new RequestError('없는 페이지입니다.', 404); }
+        res.writeHead(200, { 'Content-Type': found.type, 'Cache-Control': 'no-cache' });
+        return res.end(data);
       }
 
       // 새 버전이 켜질 때 예전 꿈탐정을 끄라고 부탁함 (1.9부터)
@@ -282,10 +101,10 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         return;
       }
 
-      if (url.pathname.startsWith('/api/')) {
-        throw new RequestError('이 기능을 찾지 못했어요. 꿈탐정을 새 버전으로 바꿨다면, 작업 표시줄의 꿈탐정 검은 창을 닫고 부엉 아이콘으로 다시 켜 주세요.', 404);
-      }
-      throw new RequestError('없는 페이지입니다.', 404);
+      const body = req.method === 'GET' || req.method === 'DELETE' ? {} : await readJson(req, url.pathname === '/api/import' ? MAX_IMPORT_BYTES : MAX_BODY_BYTES);
+      const result = await app.handle(req.method, url.pathname, body);
+      if (result.stream) return stream(res, result.stream);
+      return sendJson(res, 200, result.json);
     } catch (err) {
       if (res.headersSent) return res.end();
       const status = err.status || 500;

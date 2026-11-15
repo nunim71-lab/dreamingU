@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeChart, describeChart, localToDate, signOf } from '../src/astro.js';
+import { computeChart, describeChart, localToDate, signOf } from '../docs/js/astro.js';
 
 const close = (actual, expected, tol, label) =>
   assert.ok(Math.abs(((actual - expected + 540) % 360) - 180) <= tol, `${label}: ${actual} vs ${expected}`);

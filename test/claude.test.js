@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DETECTIVE_SYSTEM, askClaude, buildDreamPrompt, parseReport } from '../src/claude.js';
-import { computeChart } from '../src/astro.js';
+import { DETECTIVE_SYSTEM, askClaude, buildDreamPrompt, parseReport } from '../docs/js/claude.js';
+import { computeChart } from '../docs/js/astro.js';
 
 const sse = (events) => {
   const body = events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join('');
@@ -85,7 +85,7 @@ test('dream prompt includes the dream, moods, chart and recent dreams', () => {
 });
 
 test('paste prompt asks for 【】 markers instead of tags', async () => {
-  const { buildPastePrompt } = await import('../src/claude.js');
+  const { buildPastePrompt } = await import('../docs/js/claude.js');
   const chart = computeChart(new Date(Date.UTC(2026, 10, 9, 22, 30)), { lat: 37.5665, lon: 126.978, name: '서울' });
   const text = buildPastePrompt({ id: 'a', text: '고래를 탔어요', moods: [], dreamAtLocal: '2026-11-10T07:30', tzOffset: 9, chart });
   assert.doesNotMatch(text, /<\/?(분석심리학|천궁도|제목|키워드)>/);

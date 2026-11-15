@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeChart, SIGNS } from '../src/astro.js';
-import { josa, readChart } from '../src/reading.js';
+import { computeChart, SIGNS } from '../docs/js/astro.js';
+import { josa, readChart } from '../docs/js/reading.js';
 
 test('every part of the reading has text for any sky', () => {
   // 1년 동안 하루씩: 달이 모든 별자리·모양을 지나므로 빈 풀이가 없어야 함

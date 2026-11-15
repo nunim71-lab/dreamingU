@@ -1,4 +1,5 @@
-# 꿈탐정 부엉 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico public/icon.png
+# 꿈탐정 부엉 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico docs/icon.png
+# docs 폴더에 휴대폰 홈 화면용 icon-180/192/512.png 도 함께 만듦
 # 밤하늘 앞의 신비로운 하얀 부엉이: 황금 망토, 은빛 깃털, 금빛으로 빛나는 눈, 이마의 작은 별, 뒤에는 초승달과 별빛.
 # 흰 스티커 테두리로 어떤 바탕화면에서도 잘 보이게 함.
 import sys, math, random
@@ -165,9 +166,18 @@ shadow = Image.new('RGBA', (S, S), (0, 0, 0, 110)); shadow.putalpha(outline.poin
 shadow = shadow.filter(ImageFilter.GaussianBlur(14 * k))
 final = Image.alpha_composite(Image.alpha_composite(layer(), shadow), sticker)
 final = Image.alpha_composite(final, img)
-final = final.resize((256, 256), Image.LANCZOS)
+big = final
+final = big.resize((256, 256), Image.LANCZOS)
 
 ico, png = sys.argv[1], sys.argv[2]
 final.save(ico, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 final.save(png)
-print('saved', ico, png)
+import os
+out = os.path.dirname(png)
+for size in (192, 512):  # 안드로이드 홈 화면
+    big.resize((size, size), Image.LANCZOS).save(os.path.join(out, f'icon-{size}.png'))
+# 아이폰 홈 화면: 투명한 곳이 검게 보이지 않게 밤하늘 색 바탕을 깔아 줌
+apple = Image.new('RGBA', (S, S), (13, 16, 41, 255))
+apple = Image.alpha_composite(apple, big).resize((180, 180), Image.LANCZOS).convert('RGB')
+apple.save(os.path.join(out, 'icon-180.png'))
+print('saved', ico, png, 'and icon-180/192/512.png')

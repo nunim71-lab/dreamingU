@@ -1,4 +1,4 @@
-// 꿈탐정이 Claude 에게 꿈 분석을 맡기는 부분 (Node.js 내장 fetch 만 사용)
+// 꿈탐정이 Claude 에게 꿈 분석을 맡기는 부분 (컴퓨터의 Node.js 와 휴대폰 브라우저가 함께 씀, 내장 fetch 만 사용)
 import { describeChart } from './astro.js';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -150,6 +150,8 @@ export async function askClaude({ apiKey, model = DEFAULT_MODEL, system, prompt,
         'x-api-key': apiKey,
         'anthropic-version': '2026-10-21',
         'anthropic-beta': 'server-side-fallback-2026-07-01',
+        // 휴대폰 버전은 브라우저에서 바로 Claude 를 부름 (키는 그 휴대폰에만 저장되어 있음)
+        ...(typeof window !== 'undefined' ? { 'anthropic-dangerous-direct-browser-access': 'true' } : {}),
       },
       body: JSON.stringify({
         model,
@@ -187,7 +189,10 @@ export async function askClaude({ apiKey, model = DEFAULT_MODEL, system, prompt,
       throw new ClaudeError(ev.error?.type === 'overloaded_error' ? friendlyError(529) : `Claude 응답 중 문제가 생겼어요: ${ev.error?.message || ''}`);
     }
   };
-  for await (const chunk of res.body) {
+  const reader = res.body.getReader();
+  for (;;) {
+    const { value: chunk, done } = await reader.read();
+    if (done) break;
     buffer += decoder.decode(chunk, { stream: true });
     let idx;
     while ((idx = buffer.indexOf('\n')) >= 0) {

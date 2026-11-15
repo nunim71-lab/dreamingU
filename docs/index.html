@@ -2,9 +2,16 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1029">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="꿈탐정">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="/icon.png?v=1.10">
+<link rel="icon" href="./icon.png?v=2.0">
+<link rel="apple-touch-icon" href="./icon-180.png?v=2.0">
+<link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
     --bg: #0d1029; --bg2: #151a3f; --card: #1b2150; --line: #2f3672;
@@ -44,6 +51,17 @@
   .card h2 { margin: 0 0 12px; font-size: 17px; color: var(--gold2); }
   .grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 14px; }
   @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } .bubble { display: none; } nav button { padding: 6px 12px; font-size: 14px; } }
+  @media (max-width: 520px) {
+    .app { padding: 12px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left)); }
+    header img { width: 46px; height: 46px; }
+    header h1 { font-size: 19px; }
+    .card { padding: 14px; border-radius: 14px; }
+    nav { gap: 4px; }
+    nav button { padding: 6px 10px; }
+    /* 아이폰에서 칸을 누르면 화면이 확대되지 않게 16px */
+    textarea, input[type=text], input[type=password], input[type=number], input[type=datetime-local], select { font-size: 16px; }
+    .bar { grid-template-columns: 84px 1fr 28px; }
+  }
   label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
   textarea, input[type=text], input[type=password], input[type=number], input[type=datetime-local], select {
     width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none;
@@ -122,7 +140,7 @@
 <body>
 <div class="app">
   <header>
-    <img src="/icon.png?v=1.10" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="./icon.png?v=2.0" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
@@ -234,7 +252,7 @@
         <li>왼쪽 메뉴 <b>Billing</b> 에서 크레딧 충전 (꿈 분석 1번에 대략 100~200원, 5달러면 꿈 40개쯤).<br>💡 Claude <b>Max·Ultra·Team</b> 구독이면 매달 API 크레딧이 함께 나와요. claude.ai 의 설정 → 결제에서 이 Console 계정을 연결하면 <b>Promotional credits</b> 에 들어와서 충전하지 않아도 돼요.</li>
         <li><b>API Keys</b> → <b>Create Key</b> → 나온 키를 복사해서 위 칸에 붙여 넣고 저장</li>
       </ol>
-      <p class="hint">키와 꿈 일기는 이 컴퓨터의 꿈탐정 폴더 안 <code>data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
+      <p class="hint" id="storage-hint">키와 꿈 일기는 이 컴퓨터의 꿈탐정 폴더 안 <code>data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
       <p class="hint" id="model-line"></p>
     </div>
     <div class="card">
@@ -250,15 +268,32 @@
       <div class="actions"><button class="btn small" id="save-place">기본값으로 저장</button></div>
       <div class="msg" id="place-msg"></div>
     </div>
+    <div class="card">
+      <h2>📦 꿈 일기 옮기기 (내보내기 · 가져오기)</h2>
+      <p class="hint">휴대폰과 컴퓨터의 꿈 일기는 따로 저장돼요. 한쪽에서 <b>내보내기</b>한 파일을 다른 쪽에서 <b>가져오기</b>하면 합쳐져요. 같은 꿈은 두 번 들어가지 않아요. (API 키는 파일에 들어가지 않아요)</p>
+      <div class="actions">
+        <button class="btn small" id="export-btn">📤 꿈 일기 내보내기</button>
+        <button class="btn ghost small" id="import-btn">📥 꿈 일기 가져오기</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="msg" id="move-msg"></div>
+      <p class="hint" id="backup-hint" hidden>💾 휴대폰 버전의 꿈 일기는 이 휴대폰의 브라우저 안에 있어요. 브라우저의 "인터넷 사용 기록·사이트 데이터 삭제"를 하면 함께 지워질 수 있으니, 가끔 <b>내보내기</b>로 백업해 두세요.</p>
+    </div>
   </section>
 
   <footer>꿈 해석은 마음을 들여다보는 하나의 거울일 뿐, 예언이나 진단이 아니에요. 마음이 많이 힘들 땐 전문가와 이야기해 주세요 (자살예방상담 109).</footer>
 </div>
 
 <script type="module">
-import { SIGNS, computeChart, localToDate, norm } from '/astro.js';
-import { readChart } from '/reading.js';
-import { parseReport } from '/report.js';
+import { SIGNS, computeChart, localToDate, norm } from './js/astro.js';
+import { readChart } from './js/reading.js';
+import { parseReport } from './js/report.js';
+
+// 이 화면의 빌드 번호 (아이콘 주소의 ?v=…)
+const PAGE_BUILD = new URL(document.querySelector('link[rel=icon]').href).searchParams.get('v');
+// 컴퓨터 버전(꿈탐정 프로그램이 켜져 있음)이면 null, 휴대폰·브라우저 버전이면 화면 안의 두뇌
+let backend = null;
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -267,7 +302,7 @@ const TEXT_GLYPH = '︎'; // 이모지 대신 기호 모양으로
 const CITIES = [
   ['서울', 37.5665, 126.978], ['부산', 35.1796, 129.0756], ['대구', 35.8714, 128.6014], ['인천', 37.4563, 126.7052],
   ['광주', 35.1595, 126.8526], ['대전', 36.3504, 127.3845], ['울산', 35.5384, 129.3114], ['세종', 36.48, 127.289],
-  ['수원', 37.2636, 127.0286], ['춘천', 37.8813, 127.7298], ['강릉', 37.7519, 128.8761], ['청주', 36.6424, 127.489],
+  ['수원', 37.2636, 127.0286], ['여주', 37.2983, 127.6372], ['춘천', 37.8813, 127.7298], ['강릉', 37.7519, 128.8761], ['청주', 36.6424, 127.489],
   ['전주', 35.8242, 127.148], ['포항', 36.019, 129.3435], ['창원', 35.228, 128.6811], ['제주', 33.4996, 126.5312],
 ];
 const MOODS = ['😨 무서움', '😰 불안', '😢 슬픔', '😡 화남', '😊 기쁨', '😌 평온', '😳 당황', '🤩 신기함', '🥰 설렘', '😶 멍함'];
@@ -290,6 +325,7 @@ $('owl').onclick = () => say(TALK[Math.floor(Math.random() * TALK.length)]);
 function showMsg(el, text, kind = '') { el.textContent = text; el.className = `msg ${kind}`; }
 
 async function api(path, options = {}) {
+  if (backend) return backend.request(options.method || 'GET', path, options.body ? JSON.parse(options.body) : {});
   const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `문제가 생겼어요 (${res.status})`);
@@ -483,6 +519,7 @@ const WRITING = '<p class="thinking">계속 쓰는 중…</p>';
 
 // 서버에서 글을 받아 오며, 받을 때마다 onText(지금까지의 글) 호출. 끝나면 전체 글을 돌려줌
 async function streamText(path, onText) {
+  if (backend) return backend.stream(path, onText);
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -540,11 +577,15 @@ async function copyText(text) {
   }
 }
 
-// 물어볼 글을 복사하고 claude.ai 를 엶
+// 물어볼 글을 복사하고 claude.ai 를 엶. 휴대폰은 [다시 복사]를 바로 할 수 있게 글을 기억해 둠
+const promptCache = new Map();
 async function copyAsk(promptUrl) {
   const { text } = await api(promptUrl);
-  await copyText(text);
-  window.open(CLAUDE_URL, '_blank', 'noopener');
+  promptCache.set(promptUrl, text);
+  let copied = true;
+  try { await copyText(text); } catch { copied = false; }
+  if (!isMobile) window.open(CLAUDE_URL, '_blank', 'noopener');
+  return copied;
 }
 const dreamUrls = (id) => ({ promptUrl: `/api/dreams/${id}/prompt`, reportUrl: `/api/dreams/${id}/report` });
 const PATTERN_URLS = { promptUrl: '/api/patterns/prompt', reportUrl: '/api/patterns/report' };
@@ -554,13 +595,15 @@ function pasteCardHtml(title = '📋 claude.ai 에서 수사 받기') {
   return `<div class="card paste-card">
     <h2>${title}</h2>
     <ol>
-      <li><b>물어볼 글을 복사했어요.</b> 새로 열린 claude.ai 창의 대화 칸에 <b>Ctrl+V</b> 로 붙여 넣고 보내세요.</li>
+      ${isMobile
+        ? '<li><b>물어볼 글을 복사했어요.</b> 아래 <b>[🌐 Claude 열기]</b>를 눌러 Claude 앱(또는 claude.ai)의 대화 칸을 <b>길게 눌러 붙여넣기</b> 하고 보내세요.</li>'
+        : '<li><b>물어볼 글을 복사했어요.</b> 새로 열린 claude.ai 창의 대화 칸에 <b>Ctrl+V</b> 로 붙여 넣고 보내세요.</li>'}
       <li>Claude 의 답이 다 나오면, 답 아래의 <b>복사</b> 버튼(📋)을 눌러요.</li>
-      <li>아래 칸에 <b>Ctrl+V</b> 로 붙여 넣고 <b>[📥 보고서 저장]</b>을 눌러요.</li>
+      <li>이 화면으로 돌아와 아래 칸에 붙여 넣고 <b>[📥 보고서 저장]</b>을 눌러요. ${isMobile ? '(칸을 길게 누르면 붙여넣기)' : '(Ctrl+V)'}</li>
     </ol>
     <div class="actions" style="margin:0 0 10px">
       <button class="btn ghost small" data-act="recopy">📋 다시 복사</button>
-      <button class="btn ghost small" data-act="open">🌐 claude.ai 열기</button>
+      <a class="btn ghost small" data-act="open" href="${CLAUDE_URL}" target="_blank" rel="noopener" style="text-decoration:none">🌐 Claude 열기</a>
     </div>
     <textarea data-act="answer" placeholder="여기에 Claude 의 답을 붙여 넣어 주세요"></textarea>
     <div class="actions"><button class="btn" data-act="save">📥 보고서 저장</button></div>
@@ -568,13 +611,20 @@ function pasteCardHtml(title = '📋 claude.ai 에서 수사 받기') {
   </div>`;
 }
 
+// 휴대폰은 가끔 자동 복사를 막음 → [다시 복사]를 한 번 더 누르면 됨
+function noteCopy(container, copied) {
+  if (!copied) showMsg(container.querySelector('[data-act="msg"]'), '자동 복사가 안 됐어요. 위의 [📋 다시 복사]를 한 번 눌러 주세요.', 'err');
+}
+
 function wirePasteCard(container, { promptUrl, reportUrl }, onSaved) {
   const q = (act) => container.querySelector(`[data-act="${act}"]`);
   q('recopy').onclick = async () => {
-    try { await copyText((await api(promptUrl)).text); showMsg(q('msg'), '다시 복사했어요.', 'ok'); }
-    catch (err) { showMsg(q('msg'), err.message, 'err'); }
+    try {
+      const cached = promptCache.get(promptUrl);
+      await copyText(cached ?? (await api(promptUrl)).text);
+      showMsg(q('msg'), '다시 복사했어요.', 'ok');
+    } catch (err) { showMsg(q('msg'), err.message, 'err'); }
   };
-  q('open').onclick = () => window.open(CLAUDE_URL, '_blank', 'noopener');
   q('save').onclick = async () => {
     const btn = q('save');
     btn.disabled = true;
@@ -650,7 +700,7 @@ $('copy-ask').onclick = async () => {
   try {
     const dream = await saveDream();
     resetForm();
-    await copyAsk(dreamUrls(dream.id).promptUrl);
+    const copied = await copyAsk(dreamUrls(dream.id).promptUrl);
     $('result').hidden = false;
     $('result-title').textContent = '🕵️ 부엉의 수사 보고서';
     $('result-body').innerHTML = pasteCardHtml();
@@ -660,6 +710,7 @@ $('copy-ask').onclick = async () => {
       say('수사 완료! 꿈 일기에도 넣어 두었어요. 📔');
       await loadDreams();
     });
+    noteCopy($('result-body'), copied);
     say('claude.ai 에 붙여 넣어 주세요. 답을 기다릴게요! 🦉');
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
@@ -729,9 +780,10 @@ function openDream(id) {
   $('detail-copy').onclick = async () => {
     showMsg($('detail-msg'), '');
     try {
-      await copyAsk(dreamUrls(id).promptUrl);
+      const copied = await copyAsk(dreamUrls(id).promptUrl);
       $('detail-body').innerHTML = pasteCardHtml();
       wirePasteCard($('detail-body'), dreamUrls(id), async () => { await loadDreams(); openDream(id); });
+      noteCopy($('detail-body'), copied);
       $('detail-body').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
   };
@@ -793,7 +845,7 @@ $('pattern-go').onclick = async () => {
 $('pattern-copy').onclick = async () => {
   showMsg($('pattern-msg'), '');
   try {
-    await copyAsk(PATTERN_URLS.promptUrl);
+    const copied = await copyAsk(PATTERN_URLS.promptUrl);
     $('pattern-paste').innerHTML = pasteCardHtml('📋 claude.ai 에서 종합 수사 받기');
     wirePasteCard($('pattern-paste'), PATTERN_URLS, async () => {
       $('pattern-paste').innerHTML = '';
@@ -801,6 +853,7 @@ $('pattern-copy').onclick = async () => {
       await loadPatterns();
       say('꿈들 사이의 연결고리를 찾아냈어요! 🧵');
     });
+    noteCopy($('pattern-paste'), copied);
     $('pattern-paste').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) { showMsg($('pattern-msg'), err.message, 'err'); }
 };
@@ -814,25 +867,68 @@ function applyKeyMode() {
   $('pattern-copy').className = has ? 'btn ghost' : 'btn';
   $('write-hint').innerHTML = has
     ? '💡 <b>🔍 맡기기</b>는 API 키로 바로 분석해요 (API 크레딧 사용). <b>📋 글 복사</b>는 claude.ai 에 붙여 넣어 <b>Claude 구독</b>으로 분석해요.'
-    : '💡 <b>📋 글 복사</b>를 누르면 claude.ai 가 열려요. 붙여 넣고 받은 답을 다시 붙여 넣으면 <b>Claude 구독</b>으로 분석돼요 (추가 요금 없음). 버튼 한 번에 분석하고 싶으면 ⚙️ 설정에 API 키를 넣어 주세요.';
+    : `💡 <b>📋 글 복사</b>를 누르고 ${isMobile ? '<b>Claude 앱</b>(또는 claude.ai)' : 'claude.ai'} 에 붙여 넣은 뒤, 받은 답을 다시 붙여 넣으면 <b>Claude 구독</b>으로 분석돼요 (추가 요금 없음). 버튼 한 번에 분석하고 싶으면 ⚙️ 설정에 API 키를 넣어 주세요.`;
 }
 
 // ---------- 설정 탭 ----------
 async function loadStatus() {
   status = await api('/api/status');
   applyKeyMode();
-  // 화면은 새것인데 꿈탐정 프로그램은 예전 것으로 켜져 있으면 알려 줌
-  const pageBuild = new URL(document.querySelector('link[rel=icon]').href).searchParams.get('v');
-  if (pageBuild && status.build !== pageBuild) {
+  // (컴퓨터 버전) 화면은 새것인데 꿈탐정 프로그램은 예전 것으로 켜져 있으면 알려 줌
+  if (!backend && PAGE_BUILD && status.build !== PAGE_BUILD) {
     $('version-warn').hidden = false;
-    $('version-warn').innerHTML = `⚠️ <b>꿈탐정을 다시 켜 주세요.</b> 화면은 새 버전(빌드 ${esc(pageBuild)})인데, 꿈탐정 프로그램은 예전 버전(빌드 ${esc(status.build)})으로 켜져 있어요.<br>작업 표시줄의 꿈탐정 <b>검은 창을 닫고</b>, 바탕화면의 <b>부엉 아이콘</b>을 다시 눌러 주세요. 그러기 전에는 일부 버튼이 "찾지 못했어요" 라고 나올 수 있어요.`;
+    $('version-warn').innerHTML = `⚠️ <b>꿈탐정을 다시 켜 주세요.</b> 화면은 새 버전(빌드 ${esc(PAGE_BUILD)})인데, 꿈탐정 프로그램은 예전 버전(빌드 ${esc(status.build)})으로 켜져 있어요.<br>작업 표시줄의 꿈탐정 <b>검은 창을 닫고</b>, 바탕화면의 <b>부엉 아이콘</b>을 다시 눌러 주세요. 그러기 전에는 일부 버튼이 "찾지 못했어요" 라고 나올 수 있어요.`;
   }
   $('build').textContent = `빌드 ${status.build}`;
   $('key-state').textContent = status.hasKey
     ? (status.keyFromEnv ? '✅ 컴퓨터 환경변수(ANTHROPIC_API_KEY)의 키를 쓰고 있어요.' : `✅ 키가 저장되어 있어요: ${status.maskedKey}`)
     : '아직 키가 없어요. 키가 없어도 [📋 Claude에게 물어볼 글 복사]로 Claude 구독을 써서 분석할 수 있어요. 버튼 한 번에 바로 분석받고 싶으면 API 키를 넣어 주세요.';
   $('model-line').textContent = `분석 모델: ${status.model}`;
+  if (backend) {
+    $('storage-hint').textContent = `키와 꿈 일기는 이 ${isMobile ? '휴대폰' : '컴퓨터'}의 브라우저 안에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.`;
+    $('backup-hint').hidden = false;
+  }
 }
+
+// ---------- 꿈 일기 내보내기 · 가져오기 ----------
+$('export-btn').onclick = async () => {
+  try {
+    const data = await api('/api/export');
+    const day = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    const name = `dreamingU-diary-${day}.json`; // 영어 이름: 어떤 휴대폰·브라우저에서도 이름이 깨지지 않게
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const file = new File([blob], name, { type: 'application/json' });
+    // 휴대폰: 공유하기(카톡·드라이브·내 파일 등)로 보내기, 컴퓨터: 다운로드 폴더에 저장
+    if (isMobile && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        showMsg($('move-msg'), `꿈 ${data.dreams.length}개를 내보냈어요.`, 'ok');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    showMsg($('move-msg'), `꿈 ${data.dreams.length}개를 "${name}" 파일로 내보냈어요. ${isMobile ? '(다운로드 폴더)' : '다운로드 폴더를 확인해 주세요.'}`, 'ok');
+  } catch (err) { showMsg($('move-msg'), err.message, 'err'); }
+};
+$('import-btn').onclick = () => $('import-file').click();
+$('import-file').onchange = async () => {
+  const file = $('import-file').files[0];
+  $('import-file').value = '';
+  if (!file) return;
+  try {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { throw new Error('꿈탐정에서 내보낸 꿈 일기 파일이 아니에요.'); }
+    const r = await api('/api/import', { method: 'POST', body: JSON.stringify({ data }) });
+    showMsg($('move-msg'), `가져왔어요! 새 꿈 ${r.added}개, 새로 바뀐 꿈 ${r.updated}개${r.skipped ? `, 읽지 못한 꿈 ${r.skipped}개` : ''}. 지금 꿈 일기는 모두 ${r.total}개예요.`, 'ok');
+    await loadDreams();
+  } catch (err) { showMsg($('move-msg'), err.message, 'err'); }
+};
 $('save-key').onclick = async () => {
   try {
     await api('/api/settings', { method: 'POST', body: JSON.stringify({ apiKey: $('apikey').value }) });
@@ -863,7 +959,21 @@ document.querySelector('nav').onclick = async (e) => {
 };
 
 // ---------- 시작 ----------
+// 꿈탐정 프로그램(컴퓨터 버전)이 켜져 있으면 그쪽에 저장, 아니면(휴대폰·인터넷 주소) 이 브라우저 안에 저장
+async function isServerMode() {
+  if (location.protocol === 'https:') return false; // 인터넷 주소(휴대폰 버전)엔 꿈탐정 프로그램이 없음
+  try {
+    const res = await fetch('./api/status', { cache: 'no-store' });
+    return res.ok && (res.headers.get('content-type') || '').includes('application/json');
+  } catch { return false; }
+}
 try {
+  if (!(await isServerMode())) {
+    const { createLocalBackend } = await import('./js/local.js');
+    backend = await createLocalBackend(PAGE_BUILD);
+    // 홈 화면 앱: 인터넷이 없어도 열리고, 새 버전은 다음에 열 때 저절로 받음
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
   await loadStatus();
   const place = status.place || { name: '서울', lat: 37.5665, lon: 126.978 };
   setPlace(place, $('city'), $('lat'), $('lon'), $('custom-place'));
@@ -874,7 +984,7 @@ try {
   await loadDreams();
   if (!status.hasKey) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
 } catch (err) {
-  say('서버와 연결이 안 돼요. 검은 창(꿈탐정)이 켜져 있는지 확인해 주세요.');
+  say(backend ? `문제가 생겼어요: ${err.message}` : '서버와 연결이 안 돼요. 검은 창(꿈탐정)이 켜져 있는지 확인해 주세요.');
 }
 </script>
 </body>

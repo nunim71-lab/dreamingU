@@ -20,11 +20,17 @@ const DREAM = { text: '하늘을 나는 꿈', moods: ['🤩 신기함'], dreamAt
 test('serves the page, the shared chart code and status', async () => {
   await withServer({}, async (base) => {
     assert.match(await (await fetch(base + '/')).text(), /꿈탐정 부엉/);
-    assert.match(await (await fetch(base + '/astro.js')).text(), /export function computeChart/);
-    assert.match(await (await fetch(base + '/report.js')).text(), /export function parseReport/);
+    assert.match(await (await fetch(base + '/js/astro.js')).text(), /export function computeChart/);
+    assert.match(await (await fetch(base + '/js/report.js')).text(), /export function parseReport/);
+    assert.match(await (await fetch(base + '/js/app.js')).text(), /export async function createApp/);
+    // 화면 폴더(docs) 밖이나 숨김 파일, 휴대폰 전용 sw.js 는 내보내지 않음
+    for (const bad of ['/../package.json', '/%2e%2e/package.json', '/js/../../src/server.js', '/.nojekyll', '/sw.js', '/nothing.js']) {
+      assert.equal((await fetch(base + bad)).status, 404, bad);
+    }
     const status = await (await fetch(base + '/api/status')).json();
     assert.equal(status.hasKey, false);
     assert.equal(status.tzOffset, 9);
+    assert.equal(status.mode, 'server');
   });
 });
 
@@ -126,6 +132,45 @@ test('overall pattern analysis also works by copy and paste', async () => {
     assert.equal(saved.last.via, 'paste');
     const { last } = await (await fetch(`${base}/api/patterns`)).json();
     assert.equal(last.count, 2);
+  });
+});
+
+test('export and import move the dream diary between computer and phone', async () => {
+  await withServer({ env: {} }, async (pcBase) => {
+    await json(pcBase, '/api/settings', { apiKey: 'sk-ant-api03-secret-abcdefghij' });
+    const { dream } = await (await json(pcBase, '/api/dreams', DREAM)).json();
+    await json(pcBase, `/api/dreams/${dream.id}/report`, { text: '【분석심리학】\n## 🔍 꿈 한눈에 보기\n하늘을 나는 꿈은 자유로워지고 싶은 마음일 수 있어요.\n【제목】 하늘 산책' });
+    const exported = await (await fetch(`${pcBase}/api/export`)).json();
+    assert.equal(exported.app, 'dreamingU');
+    assert.equal(exported.dreams.length, 1);
+    assert.ok(!JSON.stringify(exported).includes('secret'), 'API 키는 내보내지 않음');
+
+    await withServer({}, async (phoneBase) => {
+      // 휴대폰에서 따로 기록한 꿈 + 컴퓨터에서 가져온 꿈
+      await json(phoneBase, '/api/dreams', { ...DREAM, text: '바다를 헤엄친 꿈', dreamAtLocal: '2026-11-12T06:00' });
+      const r1 = await (await json(phoneBase, '/api/import', { data: exported })).json();
+      assert.deepEqual(r1, { added: 1, updated: 0, skipped: 0, total: 2 });
+      const r2 = await (await json(phoneBase, '/api/import', { data: exported })).json();
+      assert.equal(r2.added, 0, '같은 꿈은 두 번 들어가지 않음');
+      const { dreams } = await (await fetch(`${phoneBase}/api/dreams`)).json();
+      const moved = dreams.find((d) => d.id === dream.id);
+      assert.equal(moved.title, '하늘 산책');
+      assert.equal(moved.chart.planets.length, 10, '차트는 다시 계산됨');
+      assert.equal(dreams[0].text, '바다를 헤엄친 꿈', '날짜 순서대로');
+
+      // 컴퓨터에서 다시 분석하면 더 새것으로 바뀜
+      const newer = structuredClone(exported);
+      newer.dreams[0].analyzedAt = new Date(Date.now() + 60000).toISOString();
+      newer.dreams[0].title = '다시 본 하늘';
+      const r3 = await (await json(phoneBase, '/api/import', { data: newer })).json();
+      assert.equal(r3.updated, 1);
+
+      // 잘못된 파일, 이상한 꿈은 거절하거나 건너뜀
+      assert.equal((await json(phoneBase, '/api/import', { data: { hello: 1 } })).status, 400);
+      const broken = { app: 'dreamingU', dreams: [{ id: '../x', text: 'a', dreamAt: 'x' }, { id: 'ok-1', text: '', dreamAt: '2026-01-01T00:00:00Z' }] };
+      const r4 = await (await json(phoneBase, '/api/import', { data: broken })).json();
+      assert.equal(r4.skipped, 2);
+    });
   });
 });
 
