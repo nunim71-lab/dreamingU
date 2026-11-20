@@ -149,7 +149,7 @@ test('export and import move the dream diary between computer and phone', async 
       // 휴대폰에서 따로 기록한 꿈 + 컴퓨터에서 가져온 꿈
       await json(phoneBase, '/api/dreams', { ...DREAM, text: '바다를 헤엄친 꿈', dreamAtLocal: '2026-11-12T06:00' });
       const r1 = await (await json(phoneBase, '/api/import', { data: exported })).json();
-      assert.deepEqual(r1, { added: 1, updated: 0, skipped: 0, total: 2 });
+      assert.deepEqual(r1, { added: 1, updated: 0, skipped: 0, removed: 0, total: 2 });
       const r2 = await (await json(phoneBase, '/api/import', { data: exported })).json();
       assert.equal(r2.added, 0, '같은 꿈은 두 번 들어가지 않음');
       const { dreams } = await (await fetch(`${phoneBase}/api/dreams`)).json();

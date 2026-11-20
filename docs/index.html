@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="꿈꾸는부엉이">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>꿈꾸는부엉이</title>
-<link rel="icon" href="./icon.png?v=2.2">
-<link rel="apple-touch-icon" href="./icon-180.png?v=2.2">
+<link rel="icon" href="./icon.png?v=2.3">
+<link rel="apple-touch-icon" href="./icon-180.png?v=2.3">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
@@ -141,8 +141,8 @@
 <body>
 <div class="app">
   <header>
-    <img src="./icon.png?v=2.2" alt="부엉" id="owl" title="부엉을 눌러 보세요">
-    <h1>꿈꾸는부엉이 <small id="build"></small></h1>
+    <img src="./icon.png?v=2.3" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <h1>꿈꾸는부엉이 <small id="build"></small> <small id="sync-badge" hidden></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
 
@@ -269,9 +269,37 @@
       <div class="actions"><button class="btn small" id="save-place">기본값으로 저장</button></div>
       <div class="msg" id="place-msg"></div>
     </div>
+    <div class="card" id="sync-card">
+      <h2>🔄 자동 동기화 (휴대폰 ↔ 컴퓨터)</h2>
+      <p class="hint" id="sync-state">휴대폰과 컴퓨터의 꿈 일기·메모를 저절로 맞춰요. 내 깃허브의 <b>비공개 저장소</b>에 <b>동기화 비밀번호로 잠가서</b> 보관하니, 깃허브도 내용을 읽을 수 없어요.</p>
+      <div id="sync-form">
+        <label for="sync-repo">보관함 저장소 (아이디/저장소이름)</label>
+        <input type="text" id="sync-repo" placeholder="nunim71-lab/dreamingU-diary" autocapitalize="off" autocomplete="off" spellcheck="false">
+        <label for="sync-token">깃허브 열쇠 (github_pat_ 로 시작)</label>
+        <input type="password" id="sync-token" placeholder="github_pat_..." autocomplete="off">
+        <label for="sync-pass">동기화 비밀번호 (8글자 이상, 모든 기기에 똑같이)</label>
+        <input type="password" id="sync-pass" autocomplete="new-password">
+        <div class="actions"><button class="btn small" id="sync-connect">🔗 연결하고 맞추기</button></div>
+      </div>
+      <div class="actions" id="sync-on" hidden>
+        <button class="btn small" id="sync-now">🔄 지금 맞추기</button>
+        <button class="btn ghost small" id="sync-off">연결 끊기</button>
+      </div>
+      <div class="msg" id="sync-msg"></div>
+      <details class="planet-details">
+        <summary>처음 설정하는 법 (15분, 한 번만)</summary>
+        <ol class="steps">
+          <li><b>보관함 만들기</b>: <a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a> → Repository name 에 <code>dreamingU-diary</code> → <b>Private</b>(비공개) 고르기 → <b>Create repository</b></li>
+          <li><b>열쇠 만들기</b>: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">깃허브 열쇠 만들기</a> → Token name 에 <code>꿈꾸는부엉이</code> → Expiration 은 가장 길게 → Repository access 에서 <b>Only select repositories</b> → <code>dreamingU-diary</code> 고르기 → Permissions 의 <b>Contents</b> 를 <b>Read and write</b> → <b>Generate token</b> → 나온 열쇠 복사 (창을 닫으면 다시 못 봐요)</li>
+          <li><b>이 화면에 넣기</b>: 저장소 <code>내아이디/dreamingU-diary</code>, 열쇠, <b>동기화 비밀번호</b>(새로 정하기) → <b>[🔗 연결하고 맞추기]</b></li>
+          <li><b>다른 기기에서도</b> 3번을 똑같이 해요. 저장소와 <b>동기화 비밀번호는 꼭 같게</b>, 열쇠는 같은 걸 써도 되고 기기마다 새로 만들어도 돼요.</li>
+        </ol>
+        <p class="hint">⚠️ 동기화 비밀번호를 잊으면 보관함을 열 수 없어요. (각 기기 안의 꿈 일기는 그대로 남아요) 열쇠와 비밀번호는 이 기기의 브라우저 안에만 저장돼요.</p>
+      </details>
+    </div>
     <div class="card">
       <h2>📦 꿈 일기 옮기기 (내보내기 · 가져오기)</h2>
-      <p class="hint">휴대폰과 컴퓨터의 꿈 일기는 따로 저장돼요. 한쪽에서 <b>내보내기</b>한 파일을 다른 쪽에서 <b>가져오기</b>하면 합쳐져요. 같은 꿈은 두 번 들어가지 않아요. (API 키는 파일에 들어가지 않아요)</p>
+      <p class="hint">위의 자동 동기화를 쓰지 않을 때나 백업할 때 써요. 휴대폰과 컴퓨터의 꿈 일기는 따로 저장돼요. 한쪽에서 <b>내보내기</b>한 파일을 다른 쪽에서 <b>가져오기</b>하면 합쳐져요. 같은 꿈은 두 번 들어가지 않아요. (API 키는 파일에 들어가지 않아요)</p>
       <div class="actions">
         <button class="btn small" id="export-btn">📤 꿈 일기 내보내기</button>
         <button class="btn ghost small" id="import-btn">📥 꿈 일기 가져오기</button>
@@ -306,7 +334,7 @@ const CITIES = [
   ['수원', 37.2636, 127.0286], ['여주', 37.2983, 127.6372], ['춘천', 37.8813, 127.7298], ['강릉', 37.7519, 128.8761], ['청주', 36.6424, 127.489],
   ['전주', 35.8242, 127.148], ['포항', 36.019, 129.3435], ['창원', 35.228, 128.6811], ['제주', 33.4996, 126.5312],
 ];
-const MOODS = ['😨 무서움', '😰 불안', '😢 슬픔', '😡 화남', '😊 기쁨', '😌 평온', '😳 당황', '🤩 신기함', '🥰 설렘', '😶 멍함'];
+const MOODS = ['😨 무서움', '😰 불안', '😢 슬픔', '😡 화남', '😊 기쁨', '😌 평온', '😳 당황', '🤩 신기함', '🥰 설렘', '😶 멍함', '😮‍💨 허탈', '😆 재미'];
 const TALK = [
   '단서는 언제나 꿈의 가장 이상한 곳에 숨어 있죠. 🔎',
   '꿈속 인물은 대개 당신 마음의 한 조각이랍니다.',
@@ -325,11 +353,18 @@ $('owl').onclick = () => say(TALK[Math.floor(Math.random() * TALK.length)]);
 
 function showMsg(el, text, kind = '') { el.textContent = text; el.className = `msg ${kind}`; }
 
-async function api(path, options = {}) {
+async function rawApi(path, options = {}) {
   if (backend) return backend.request(options.method || 'GET', path, options.body ? JSON.parse(options.body) : {});
   const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `문제가 생겼어요 (${res.status})`);
+  return data;
+}
+// 꿈 일기가 바뀌는 요청이면 끝난 뒤 자동 동기화 예약
+const CHANGES_DIARY = /^\/api\/(dreams|import|patterns\/report)/;
+async function api(path, options = {}) {
+  const data = await rawApi(path, options);
+  if ((options.method || 'GET') !== 'GET' && CHANGES_DIARY.test(path)) scheduleSync();
   return data;
 }
 
@@ -520,6 +555,11 @@ const WRITING = '<p class="thinking">계속 쓰는 중…</p>';
 
 // 서버에서 글을 받아 오며, 받을 때마다 onText(지금까지의 글) 호출. 끝나면 전체 글을 돌려줌
 async function streamText(path, onText) {
+  const text = await streamTextRaw(path, onText);
+  scheduleSync(); // 분석이 저장됐으니 동기화
+  return text;
+}
+async function streamTextRaw(path, onText) {
   if (backend) return backend.stream(path, onText);
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!res.ok) {
@@ -1011,6 +1051,109 @@ document.querySelector('nav').onclick = async (e) => {
   if (b.dataset.tab === 'pattern') await loadPatterns();
 };
 
+// ---------- 🔄 자동 동기화 ----------
+// 열쇠·저장소·비밀번호는 이 기기의 브라우저 안(localStorage)에만
+const SYNC_KEY = 'dreamingU:sync';
+let syncConfig = null;
+try { syncConfig = JSON.parse(localStorage.getItem(SYNC_KEY)) || null; } catch { syncConfig = null; }
+let syncRun = null; // 지금 맞추는 중이면 그 약속
+let syncAgain = false;
+let syncTimer = null;
+let syncError = '';
+const saveSyncConfig = () => { try { if (syncConfig) localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); else localStorage.removeItem(SYNC_KEY); } catch { /* 저장 못 해도 이번엔 동작 */ } };
+
+function showSyncState() {
+  const badge = $('sync-badge');
+  badge.hidden = !syncConfig;
+  $('sync-form').hidden = Boolean(syncConfig);
+  $('sync-on').hidden = !syncConfig;
+  if (!syncConfig) return;
+  const when = syncConfig.lastSyncAt ? fmtTime(syncConfig.lastSyncAt) : '아직';
+  badge.textContent = syncRun ? '· 🔄 맞추는 중…' : syncError ? '· ⚠️ 동기화 안 됨' : `· 🔄 ${syncConfig.lastSyncAt ? new Date(syncConfig.lastSyncAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : ''}`;
+  $('sync-state').innerHTML = `✅ <b>${esc(syncConfig.repo)}</b> 와 연결됨 · 마지막으로 맞춘 때: ${esc(when)}${syncConfig.lastTotal !== undefined ? ` · 꿈 ${syncConfig.lastTotal}개` : ''}${syncError ? `<br>⚠️ ${esc(syncError)}` : ''}`;
+}
+
+async function runSync({ quiet = true } = {}) {
+  if (!syncConfig) return null;
+  if (syncRun) { syncAgain = true; return syncRun; }
+  syncRun = (async () => {
+    showSyncState();
+    try {
+      const { syncOnce } = await import('./js/sync.js');
+      const r = await syncOnce({ api: rawApi, config: syncConfig });
+      syncError = '';
+      syncConfig.lastSyncAt = new Date().toISOString();
+      syncConfig.lastTotal = r.total;
+      saveSyncConfig();
+      const p = r.pulled;
+      if (p && (p.added || p.updated || p.removed)) {
+        say('다른 기기의 꿈 일기를 맞췄어요. 🔄');
+        await loadDreams();
+        if (!$('tab-pattern').hidden) await loadPatterns();
+      }
+      return r;
+    } catch (err) {
+      syncError = err.message;
+      if (!quiet) throw err;
+      return null;
+    } finally {
+      syncRun = null;
+      showSyncState();
+      if (syncAgain) { syncAgain = false; scheduleSync(500); }
+    }
+  })();
+  return syncRun;
+}
+function scheduleSync(delay = 2500) {
+  if (!syncConfig) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => runSync(), delay);
+}
+// 앱으로 돌아올 때(다른 앱 갔다 오기) 30초 넘게 지났으면 맞추기
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && syncConfig && (!syncConfig.lastSyncAt || Date.now() - Date.parse(syncConfig.lastSyncAt) > 30000)) runSync();
+});
+
+$('sync-connect').onclick = async () => {
+  const btn = $('sync-connect');
+  const next = { repo: $('sync-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, ''), token: $('sync-token').value.trim(), passphrase: $('sync-pass').value };
+  showMsg($('sync-msg'), '');
+  try {
+    const { checkConfig } = await import('./js/sync.js');
+    checkConfig(next);
+  } catch (err) { showMsg($('sync-msg'), err.message, 'err'); return; }
+  btn.disabled = true;
+  showMsg($('sync-msg'), '🔄 보관함과 맞추는 중… (처음엔 조금 걸려요)');
+  const before = syncConfig;
+  syncConfig = next;
+  try {
+    const r = await runSync({ quiet: false });
+    saveSyncConfig();
+    $('sync-token').value = ''; $('sync-pass').value = '';
+    const got = r?.pulled ? `보관함에서 새 꿈 ${r.pulled.added}개를 받아 왔어요. ` : '보관함을 새로 만들었어요. ';
+    showMsg($('sync-msg'), `연결됐어요! ${got}이제 저장할 때마다 저절로 맞춰요. 🦉`, 'ok');
+  } catch (err) {
+    syncConfig = before;
+    syncError = '';
+    showMsg($('sync-msg'), err.message, 'err');
+  } finally { btn.disabled = false; showSyncState(); }
+};
+$('sync-now').onclick = async () => {
+  showMsg($('sync-msg'), '🔄 맞추는 중…');
+  try {
+    const r = await runSync({ quiet: false });
+    const p = r?.pulled;
+    showMsg($('sync-msg'), p && (p.added || p.updated || p.removed) ? `맞췄어요! 새 꿈 ${p.added}개, 바뀐 꿈 ${p.updated}개, 지운 꿈 ${p.removed}개.` : '맞췄어요! 바뀐 건 없어요.', 'ok');
+  } catch (err) { showMsg($('sync-msg'), err.message, 'err'); }
+};
+$('sync-off').onclick = () => {
+  if (!confirm('이 기기의 자동 동기화를 끊을까요? 이 기기와 보관함의 꿈 일기는 그대로 남아요.')) return;
+  syncConfig = null; syncError = '';
+  saveSyncConfig();
+  showSyncState();
+  showMsg($('sync-msg'), '연결을 끊었어요. 다시 연결하려면 저장소·열쇠·비밀번호를 넣어 주세요.', 'ok');
+};
+
 // ---------- 시작 ----------
 // 꿈꾸는부엉이 프로그램(컴퓨터 버전)이 켜져 있으면 그쪽에 저장, 아니면(휴대폰·인터넷 주소) 이 브라우저 안에 저장
 async function isServerMode() {
@@ -1035,7 +1178,9 @@ try {
   $('when').value = localNow();
   updatePreview();
   await loadDreams();
-  if (!status.hasKey) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
+  showSyncState();
+  if (!status.hasKey && !syncConfig) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
+  runSync(); // 열 때 한 번 맞추기
 } catch (err) {
   say(backend ? `문제가 생겼어요: ${err.message}` : '서버와 연결이 안 돼요. 검은 창(꿈꾸는부엉이)이 켜져 있는지 확인해 주세요.');
 }

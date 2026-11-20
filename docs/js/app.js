@@ -237,6 +237,9 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
       findDream(m[1]);
       dreams = dreams.filter((d) => d.id !== m[1]);
       await store.saveDreams(dreams);
+      // 지운 꿈을 기억해 둠: 동기화·가져오기 때 다른 기기에서 다시 살아나지 않게
+      settings = { ...settings, deleted: { ...(settings.deleted || {}), [m[1]]: new Date().toISOString() } };
+      await store.saveSettings(settings);
       return { json: { ok: true } };
     }
 
@@ -270,7 +273,7 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
 
     // 꿈 일기 내보내기 (API 키는 넣지 않음)
     if (method === 'GET' && pathname === '/api/export') {
-      return { json: { app: EXPORT_APP, build, exportedAt: new Date().toISOString(), dreams, lastPattern: settings.lastPattern || null } };
+      return { json: { app: EXPORT_APP, build, exportedAt: new Date().toISOString(), dreams, deleted: settings.deleted || {}, lastPattern: settings.lastPattern || null } };
     }
 
     // 꿈 일기 가져오기: 같은 꿈(같은 id)은 더 최근에 분석·기록된 쪽을 남김
@@ -282,22 +285,38 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
       let added = 0;
       let updated = 0;
       let skipped = 0;
+      let removed = 0;
+      // 어느 쪽에서든 지운 꿈은 지운 채로 (지운 기록을 합침)
+      const deleted = { ...(settings.deleted || {}) };
+      let deletedChanged = false;
+      if (data.deleted && typeof data.deleted === 'object') {
+        for (const [id, at] of Object.entries(data.deleted)) {
+          if (!/^[\w-]{1,64}$/.test(id) || typeof at !== 'string') continue;
+          if (!deleted[id] || at > deleted[id]) { deleted[id] = at.slice(0, 40); deletedChanged = true; }
+        }
+      }
       const byId = new Map(dreams.map((d) => [d.id, d]));
+      for (const id of Object.keys(deleted)) if (byId.delete(id)) removed++;
       for (const raw of data.dreams) {
         const d = cleanImportedDream(raw);
         if (!d) { skipped++; continue; }
+        if (deleted[d.id]) continue;
         const mine = byId.get(d.id);
         if (!mine) { byId.set(d.id, d); added++; } else if (mergeDream(mine, d)) { updated++; }
       }
       dreams = [...byId.values()];
       sortDreams();
       await store.saveDreams(dreams);
+      if (deletedChanged) {
+        settings = { ...settings, deleted };
+        await store.saveSettings(settings);
+      }
       const lp = data.lastPattern;
       if (lp && typeof lp.text === 'string' && lp.text.trim() && (!settings.lastPattern || str(lp.at, 40) > settings.lastPattern.at)) {
         settings = { ...settings, lastPattern: { text: str(lp.text, MAX_REPORT_CHARS).trim(), at: str(lp.at, 40), count: Number(lp.count) || 0, via: str(lp.via, 10) } };
         await store.saveSettings(settings);
       }
-      return { json: { added, updated, skipped, total: dreams.length } };
+      return { json: { added, updated, skipped, removed, total: dreams.length } };
     }
 
     if (pathname.startsWith('/api/')) {
