@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="꿈꾸는부엉이">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>꿈꾸는부엉이</title>
-<link rel="icon" href="./icon.png?v=2.3">
-<link rel="apple-touch-icon" href="./icon-180.png?v=2.3">
+<link rel="icon" href="./icon.png?v=2.4.0">
+<link rel="apple-touch-icon" href="./icon-180.png?v=2.4.0">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
@@ -106,6 +106,23 @@
   .paste-card textarea { min-height: 160px; }
   .warn { border-color: var(--red); color: var(--text); background: #3a1830; }
   .memo-card textarea { min-height: 140px; }
+  .advanced { margin-bottom: 14px; }
+  .advanced > summary { cursor: pointer; color: var(--muted); padding: 12px 4px; font-size: 15px; }
+  .advanced[open] > summary { color: var(--gold2); }
+  .inapp { border-color: var(--gold); background: #2c2550; }
+  .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(5, 6, 20, 0.82); display: grid; place-items: center; padding: 16px; }
+  .sheet { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 22px 20px 18px; max-width: 460px; width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 18px 50px #000a; }
+  .sheet .big-emoji { font-size: 46px; text-align: center; margin: 2px 0 6px; }
+  .sheet h2 { text-align: center; color: var(--gold2); margin: 0 0 10px; font-size: 19px; }
+  .sheet .step-body { font-size: 15px; }
+  .sheet .step-body ol, .sheet .step-body ul { padding-left: 20px; margin: 6px 0; }
+  .sheet .step-body li { margin: 4px 0; }
+  .dots { display: flex; justify-content: center; gap: 6px; margin: 14px 0 4px; }
+  .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .dots span.on { background: var(--gold); }
+  .sheet .actions { justify-content: space-between; }
+  .flag { margin-top: 10px; font-size: 13px; }
+  .flag button { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; }
   .analysis { font-size: 15px; }
   .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
   .analysis h3:first-child { margin-top: 0; }
@@ -141,12 +158,25 @@
 <body>
 <div class="app">
   <header>
-    <img src="./icon.png?v=2.3" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="./icon.png?v=2.4.0" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈꾸는부엉이 <small id="build"></small> <small id="sync-badge" hidden></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
 
   <div class="card warn" id="version-warn" hidden></div>
+  <div class="card inapp" id="inapp-warn" hidden></div>
+  <div class="overlay" id="welcome" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <div class="big-emoji" id="welcome-emoji"></div>
+      <h2 id="welcome-title"></h2>
+      <div class="step-body" id="welcome-body"></div>
+      <div class="dots" id="welcome-dots"></div>
+      <div class="actions">
+        <button class="btn ghost small" id="welcome-skip">건너뛰기</button>
+        <button class="btn" id="welcome-next">다음 →</button>
+      </div>
+    </div>
+  </div>
 
   <nav>
     <button data-tab="write" class="on">✍️ 꿈 기록</button>
@@ -239,6 +269,43 @@
   <!-- 설정 -->
   <section id="tab-settings" hidden>
     <div class="card">
+      <h2>📖 도움말</h2>
+      <div class="actions" style="margin-top:0">
+        <button class="btn small" id="open-welcome">📖 사용법 다시 보기</button>
+        <button class="btn ghost small" id="share-app">🤝 친구에게 알려 주기</button>
+        <button class="btn ghost small" id="send-feedback">💬 의견 보내기</button>
+        <a class="btn ghost small" href="./privacy.html" target="_blank" rel="noopener" style="text-decoration:none">🔒 내 꿈은 어디에?</a>
+      </div>
+      <div class="msg" id="help-msg"></div>
+    </div>
+    <div class="card">
+      <h2>📍 기본 장소 · 시간대</h2>
+      <div class="row">
+        <select id="def-city"></select>
+        <select id="def-tz"></select>
+      </div>
+      <div class="row" id="def-custom" hidden>
+        <input type="number" id="def-lat" step="0.0001" placeholder="위도">
+        <input type="number" id="def-lon" step="0.0001" placeholder="경도">
+      </div>
+      <div class="actions"><button class="btn small" id="save-place">기본값으로 저장</button></div>
+      <div class="msg" id="place-msg"></div>
+    </div>
+    <div class="card">
+      <h2>📦 꿈 일기 옮기기 (내보내기 · 가져오기)</h2>
+      <p class="hint">위의 자동 동기화를 쓰지 않을 때나 백업할 때 써요. 휴대폰과 컴퓨터의 꿈 일기는 따로 저장돼요. 한쪽에서 <b>내보내기</b>한 파일을 다른 쪽에서 <b>가져오기</b>하면 합쳐져요. 같은 꿈은 두 번 들어가지 않아요. (API 키는 파일에 들어가지 않아요)</p>
+      <div class="actions">
+        <button class="btn small" id="export-btn">📤 꿈 일기 내보내기</button>
+        <button class="btn ghost small" id="import-btn">📥 꿈 일기 가져오기</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="msg" id="move-msg"></div>
+      <p class="hint" id="backup-hint" hidden>💾 휴대폰 버전의 꿈 일기는 이 휴대폰의 브라우저 안에 있어요. 브라우저의 "인터넷 사용 기록·사이트 데이터 삭제"를 하면 함께 지워질 수 있으니, 가끔 <b>내보내기</b>로 백업해 두세요.</p>
+    </div>
+    <details class="advanced" id="advanced">
+      <summary>🔧 고급 설정 (API 키 · 자동 동기화) — 필요한 분만</summary>
+      <p class="hint">처음 쓰는 분은 몰라도 괜찮아요. 부엉이 풀이는 [📋 Claude에게 물어볼 글 복사]로 받을 수 있어요.</p>
+    <div class="card">
       <h2>🔑 Claude API 키 <span class="hint">(선택)</span></h2>
       <p class="hint" id="key-state"></p>
       <label for="apikey">API 키 (sk-ant- 로 시작)</label>
@@ -255,19 +322,6 @@
       </ol>
       <p class="hint" id="storage-hint">키와 꿈 일기는 이 컴퓨터의 꿈꾸는부엉이 폴더 안 <code>data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
       <p class="hint" id="model-line"></p>
-    </div>
-    <div class="card">
-      <h2>📍 기본 장소 · 시간대</h2>
-      <div class="row">
-        <select id="def-city"></select>
-        <select id="def-tz"></select>
-      </div>
-      <div class="row" id="def-custom" hidden>
-        <input type="number" id="def-lat" step="0.0001" placeholder="위도">
-        <input type="number" id="def-lon" step="0.0001" placeholder="경도">
-      </div>
-      <div class="actions"><button class="btn small" id="save-place">기본값으로 저장</button></div>
-      <div class="msg" id="place-msg"></div>
     </div>
     <div class="card" id="sync-card">
       <h2>🔄 자동 동기화 (휴대폰 ↔ 컴퓨터)</h2>
@@ -297,20 +351,10 @@
         <p class="hint">⚠️ 동기화 비밀번호를 잊으면 보관함을 열 수 없어요. (각 기기 안의 꿈 일기는 그대로 남아요) 열쇠와 비밀번호는 이 기기의 브라우저 안에만 저장돼요.</p>
       </details>
     </div>
-    <div class="card">
-      <h2>📦 꿈 일기 옮기기 (내보내기 · 가져오기)</h2>
-      <p class="hint">위의 자동 동기화를 쓰지 않을 때나 백업할 때 써요. 휴대폰과 컴퓨터의 꿈 일기는 따로 저장돼요. 한쪽에서 <b>내보내기</b>한 파일을 다른 쪽에서 <b>가져오기</b>하면 합쳐져요. 같은 꿈은 두 번 들어가지 않아요. (API 키는 파일에 들어가지 않아요)</p>
-      <div class="actions">
-        <button class="btn small" id="export-btn">📤 꿈 일기 내보내기</button>
-        <button class="btn ghost small" id="import-btn">📥 꿈 일기 가져오기</button>
-        <input type="file" id="import-file" accept=".json,application/json" hidden>
-      </div>
-      <div class="msg" id="move-msg"></div>
-      <p class="hint" id="backup-hint" hidden>💾 휴대폰 버전의 꿈 일기는 이 휴대폰의 브라우저 안에 있어요. 브라우저의 "인터넷 사용 기록·사이트 데이터 삭제"를 하면 함께 지워질 수 있으니, 가끔 <b>내보내기</b>로 백업해 두세요.</p>
-    </div>
+    </details>
   </section>
 
-  <footer>꿈 해석은 마음을 들여다보는 하나의 거울일 뿐, 예언이나 진단이 아니에요. 마음이 많이 힘들 땐 전문가와 이야기해 주세요 (자살예방상담 109).</footer>
+  <footer>꿈 해석은 마음을 들여다보는 하나의 거울일 뿐, 예언이나 진단이 아니에요.<br>마음이 많이 힘들 땐 혼자 견디지 말고 이야기해 주세요: <b>자살예방상담 109</b> · <b>정신건강위기상담 1577-0199</b> (24시간)<br><a href="./privacy.html" target="_blank" rel="noopener">🔒 내 꿈은 어디에 저장되나요?</a></footer>
 </div>
 
 <script type="module">
@@ -593,7 +637,8 @@ function reportHtml({ psych, sky }, streaming = false) {
   if (sky) skyInner = renderMarkdown(sky) + (streaming ? WRITING : '');
   else if (streaming) skyInner = '<p class="hint">분석심리학 풀이를 다 쓰면 이어서 쓸게요.</p>';
   else skyInner = '<p class="hint">이 꿈은 예전 방식으로 분석해서 천궁도 풀이가 따로 없어요. [🔁 다시 분석]이나 [📋 Claude에게 물어볼 글 복사]로 다시 분석하면 생겨요.</p>';
-  return card('🌗', '분석심리학 풀이', '융의 눈으로 본 마음', psychInner) + card('🔮', '천궁도 풀이', '꿈꾼 순간의 하늘과 꿈', skyInner);
+  const flag = !streaming && psych ? '<div class="flag"><button type="button" data-flag>🚩 풀이가 이상해요 (알려 주기)</button></div>' : '';
+  return card('🌗', '분석심리학 풀이', '융의 눈으로 본 마음', psychInner + flag) + card('🔮', '천궁도 풀이', '꿈꾼 순간의 하늘과 꿈', skyInner);
 }
 
 async function streamReport(path, bodyEl) {
@@ -1051,6 +1096,76 @@ document.querySelector('nav').onclick = async (e) => {
   if (b.dataset.tab === 'pattern') await loadPatterns();
 };
 
+// ---------- 👋 처음 열 때 사용법 안내 ----------
+const APP_URL = 'https://nunim71-lab.github.io/dreamingU/';
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const WELCOME_KEY = 'dreamingU:welcomed';
+const WELCOME = [
+  { emoji: '🦉', title: '꿈꾸는부엉이에 오신 걸 환영해요', body: `<p>꿈을 적으면 <b>꿈꾼 순간의 별자리 차트(천궁도)</b>를 그려 주고, 황금 망토를 두른 하얀 부엉이 탐정이 <b>융의 분석심리학</b>으로 꿈을 쉽게 풀어 줘요.</p><p>꿈 일기가 쌓이면 <b>자주 꾸는 꿈의 단서</b>도 찾아 줘요. 회원가입도, 요금도 없어요.</p>` },
+  { emoji: '✍️', title: '1. 꿈 적기', body: `<ol><li><b>✍️ 꿈 기록</b>에 생각나는 대로 꿈을 적어요. (장면, 사람, 색깔, 소리까지)</li><li><b>꿈꾼 시간</b>은 대충 깬 시각, <b>장소</b>는 사는 동네로 골라요. 그 순간의 하늘이 바로 그려져요.</li><li>꿈속 <b>기분</b>도 골라 주세요.</li></ol><p class="hint">풀이 없이 모아만 두려면 [일기에만 저장]을 눌러요.</p>` },
+  { emoji: '📋', title: '2. 부엉이 풀이 받기', body: `<ol><li><b>[📋 Claude에게 물어볼 글 복사]</b>를 눌러요. 부엉이가 풀이 방법까지 다 적어서 복사해 줘요.</li><li><b>Claude 앱</b>(또는 claude.ai)에 붙여 넣고 보내요. ${isMobile ? '(대화 칸을 길게 누르면 붙여넣기)' : '(Ctrl+V)'}</li><li>답이 다 나오면 답 아래 <b>복사</b> 버튼 → 꿈꾸는부엉이로 돌아와 붙여 넣고 <b>[📥 보고서 저장]</b></li></ol><p class="hint">Claude 계정이 필요해요 (무료 계정도 돼요). 🌗 분석심리학 풀이와 🔮 천궁도 풀이가 따로 나오고, 📔 꿈 일기에서 다시 보며 ✍️ 나의 메모를 적을 수 있어요.</p>` },
+  { emoji: '🔒', title: '3. 내 꿈은 내 기기에만', body: `<ul><li>꿈 일기는 <b>이 ${isMobile ? '휴대폰' : '컴퓨터'}의 브라우저 안에만</b> 저장돼요. 앱을 준 사람도 볼 수 없어요.</li><li>가끔 ⚙️ 설정 → <b>📤 꿈 일기 내보내기</b>로 백업해 두세요.</li><li>${isIOS ? '사파리 <b>공유(□↑) → 홈 화면에 추가</b>' : isMobile ? '크롬 <b>⋮ → 앱 설치</b>(또는 홈 화면에 추가)' : '크롬 주소창 오른쪽 <b>설치 아이콘</b>'}을 하면 앱처럼 쓸 수 있어요.</li></ul><p class="hint">마음이 많이 힘들 땐 자살예방상담 109, 정신건강위기상담 1577-0199 (24시간).</p>` },
+];
+let welcomeStep = 0;
+function showWelcome(step = 0) {
+  welcomeStep = step;
+  const w = WELCOME[step];
+  $('welcome-emoji').textContent = w.emoji;
+  $('welcome-title').textContent = w.title;
+  $('welcome-body').innerHTML = w.body;
+  $('welcome-dots').innerHTML = WELCOME.map((_, i) => `<span class="${i === step ? 'on' : ''}"></span>`).join('');
+  $('welcome-next').textContent = step === WELCOME.length - 1 ? '시작하기 🦉' : '다음 →';
+  $('welcome-skip').hidden = step === WELCOME.length - 1;
+  $('welcome').hidden = false;
+}
+function closeWelcome() {
+  $('welcome').hidden = true;
+  try { localStorage.setItem(WELCOME_KEY, '1'); } catch { /* 저장 못 해도 괜찮음 */ }
+}
+$('welcome-next').onclick = () => (welcomeStep < WELCOME.length - 1 ? showWelcome(welcomeStep + 1) : closeWelcome());
+$('welcome-skip').onclick = closeWelcome;
+$('open-welcome').onclick = () => showWelcome(0);
+const firstVisit = () => { try { return !localStorage.getItem(WELCOME_KEY); } catch { return false; } };
+
+// ---------- 💬 카톡·인스타 등 앱 안 브라우저로 열었을 때 ----------
+// 여기서 쓰면 꿈 일기가 그 앱 안에 따로 저장되고 지워질 수도 있어서, 크롬(사파리)으로 열도록 안내
+function checkInAppBrowser() {
+  const ua = navigator.userAgent;
+  const kakao = /KAKAOTALK/i.test(ua);
+  if (!kakao && !/NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|everytimeApp|DaumApps/i.test(ua)) return false;
+  const browser = isIOS ? '사파리' : '크롬';
+  const browserRo = isIOS ? '사파리로' : '크롬으로'; // 받침에 맞는 조사
+  $('inapp-warn').hidden = false;
+  $('inapp-warn').innerHTML = `⚠️ <b>${browserRo} 열어 주세요.</b> 지금은 ${kakao ? '카카오톡' : '다른 앱'} 안에서 열려 있어서, 여기에 적은 꿈 일기는 나중에 사라질 수 있어요.<div class="actions">${kakao ? `<a class="btn small" style="text-decoration:none" href="kakaotalk://web/openExternal?url=${encodeURIComponent(location.href)}">🌐 ${browserRo} 열기</a>` : ''}</div><p class="hint">버튼이 안 되면 오른쪽 ${isIOS ? '아래 공유(□↑)' : '위 ⋮'} → <b>다른 브라우저로 열기</b>(${browser})를 눌러 주세요.</p>`;
+  return true;
+}
+
+// ---------- 🤝 친구에게 알려 주기 · 💬 의견 보내기 ----------
+// 휴대폰은 공유하기(카톡 등) 창, 컴퓨터는 복사
+async function shareOrCopy(text, title, msgEl) {
+  if (navigator.share) {
+    try { await navigator.share({ title, text }); return; } catch (err) { if (err.name === 'AbortError') return; }
+  }
+  try {
+    await copyText(text);
+    showMsg(msgEl, '복사했어요! 카카오톡 같은 곳에 붙여 넣어 보내 주세요.', 'ok');
+  } catch (err) { showMsg(msgEl, err.message, 'err'); }
+}
+const deviceName = () => (isIOS ? '아이폰' : /Android/i.test(navigator.userAgent) ? '안드로이드' : '컴퓨터');
+$('share-app').onclick = () => shareOrCopy(`🦉 꿈꾸는부엉이\n꿈을 적으면 꿈꾼 순간의 별자리 차트를 그려 주고, 하얀 부엉이 탐정이 융의 분석심리학으로 꿈을 풀어 줘요. 무료예요!\n\n${APP_URL}\n\n(카톡에서 열면 ⋮ → 다른 브라우저로 열기로 크롬·사파리에서 열어 주세요)`, '꿈꾸는부엉이', $('help-msg'));
+$('send-feedback').onclick = () => shareOrCopy(`[꿈꾸는부엉이 의견]\n빌드 ${PAGE_BUILD} · ${deviceName()}\n\n😊 좋았던 점:\n\n😣 불편하거나 이상했던 점:\n\n🙏 바라는 점:\n`, '꿈꾸는부엉이 의견', $('help-msg'));
+// 보고서의 🚩 (꿈 내용은 넣지 않고 제목만)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-flag]');
+  if (!btn) return;
+  const title = (document.querySelector('#diary-detail:not([hidden]) h2') || $('result-title'))?.textContent?.trim() || '';
+  const holder = btn.closest('.card');
+  // showMsg 가 class 를 바꾸므로 data 표시로 찾음 (여러 번 눌러도 안내는 하나)
+  let msg = holder.querySelector('[data-flag-msg]');
+  if (!msg) { msg = document.createElement('div'); msg.className = 'msg'; msg.dataset.flagMsg = ''; holder.appendChild(msg); }
+  shareOrCopy(`[꿈꾸는부엉이 풀이 신고]\n빌드 ${PAGE_BUILD} · ${deviceName()}\n보고서: ${title}\n\n🚩 이상했던 부분 (어떤 문장이 왜 이상했는지):\n`, '꿈꾸는부엉이 풀이 신고', msg);
+});
+
 // ---------- 🔄 자동 동기화 ----------
 // 열쇠·저장소·비밀번호는 이 기기의 브라우저 안(localStorage)에만
 const SYNC_KEY = 'dreamingU:sync';
@@ -1063,6 +1178,7 @@ let syncError = '';
 const saveSyncConfig = () => { try { if (syncConfig) localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); else localStorage.removeItem(SYNC_KEY); } catch { /* 저장 못 해도 이번엔 동작 */ } };
 
 function showSyncState() {
+  if (syncConfig || status.hasKey) $('advanced').open = true; // 쓰고 있으면 펼쳐 둠
   const badge = $('sync-badge');
   badge.hidden = !syncConfig;
   $('sync-form').hidden = Boolean(syncConfig);
@@ -1116,7 +1232,11 @@ document.addEventListener('visibilitychange', () => {
 
 $('sync-connect').onclick = async () => {
   const btn = $('sync-connect');
-  const next = { repo: $('sync-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, ''), token: $('sync-token').value.trim(), passphrase: $('sync-pass').value };
+  // 띄어쓰기, 다른 모양의 빗금(／ ∕ ⁄), 깃허브 주소째 붙여 넣기도 알아서 고침
+  const repo = $('sync-repo').value.normalize('NFKC').replace(/[\u2215\u2044\uFF0F]/g, '/').replace(/\s+/g, '')
+    .replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/\.git$/i, '').replace(/\/+$/, '').split('/').slice(0, 2).join('/');
+  $('sync-repo').value = repo;
+  const next = { repo, token: $('sync-token').value.trim(), passphrase: $('sync-pass').value };
   showMsg($('sync-msg'), '');
   try {
     const { checkConfig } = await import('./js/sync.js');
@@ -1181,6 +1301,8 @@ try {
   showSyncState();
   if (!status.hasKey && !syncConfig) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
   runSync(); // 열 때 한 번 맞추기
+  // 카톡 안이면 먼저 크롬(사파리)으로 옮기게 하고, 사용법 안내는 거기서 보여 줌
+  if (!checkInAppBrowser() && firstVisit()) showWelcome(0);
 } catch (err) {
   say(backend ? `문제가 생겼어요: ${err.message}` : '서버와 연결이 안 돼요. 검은 창(꿈꾸는부엉이)이 켜져 있는지 확인해 주세요.');
 }

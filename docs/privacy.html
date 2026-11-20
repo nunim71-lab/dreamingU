@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d1029">
+<title>내 꿈은 어디에? · 꿈꾸는부엉이</title>
+<link rel="icon" href="./icon.png">
+<style>
+  :root { --bg: #0d1029; --card: #1b2150; --line: #2f3672; --text: #ece9ff; --muted: #a8a4d8; --gold2: #ffe3a3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif; line-height: 1.7; font-size: 15px; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 22px; color: var(--gold2); margin: 6px 0 4px; }
+  h2 { font-size: 17px; color: var(--gold2); margin: 0 0 8px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin: 14px 0; }
+  ul { padding-left: 20px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  .hint { color: var(--muted); font-size: 13px; }
+  a { color: var(--gold2); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; }
+  th { color: var(--gold2); font-weight: normal; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">← 꿈꾸는부엉이로 돌아가기</a></p>
+  <h1>🔒 내 꿈은 어디에 저장되나요?</h1>
+  <p class="hint">꿈꾸는부엉이 개인정보 안내 · 2026년 11월</p>
+
+  <section>
+    <h2>한 줄 요약</h2>
+    <p>꿈꾸는부엉이에는 <b>회원가입도, 꿈을 모아 두는 서버도 없어요.</b> 꿈 일기는 <b>내 기기 안에만</b> 저장되고, <b>내가 버튼을 누를 때만</b> 정해진 곳(Claude, 내 깃허브)으로 보내져요. 앱을 만든 사람도 내 꿈을 볼 수 없어요.</p>
+  </section>
+
+  <section>
+    <h2>📱 내 기기 안에 저장되는 것</h2>
+    <ul>
+      <li>꿈 내용, 꿈꾼 시간·장소, 꿈속 기분, 요즘의 일</li>
+      <li>별자리 차트, 부엉이의 풀이(수사 보고서), 나의 메모, 종합 분석</li>
+      <li>설정: 기본 장소, (넣었다면) Claude API 키, (켰다면) 자동 동기화 정보</li>
+    </ul>
+    <p>휴대폰·인터넷 주소로 쓰면 <b>그 브라우저 안</b>에, 컴퓨터 프로그램으로 쓰면 <b>꿈꾸는부엉이 폴더 안 <code>data</code> 폴더</b>에 저장돼요.</p>
+    <p class="hint">⚠️ 브라우저의 "사이트 데이터 삭제"를 하거나 앱을 지우면 함께 지워질 수 있어요. ⚙️ 설정 → 📤 꿈 일기 내보내기로 가끔 백업해 두세요.</p>
+  </section>
+
+  <section>
+    <h2>📤 밖으로 나가는 때 (내가 누를 때만)</h2>
+    <table>
+      <tr><th>언제</th><th>어디로</th><th>무엇을</th></tr>
+      <tr><td>[📋 Claude에게 물어볼 글 복사]</td><td>내가 붙여 넣은 Claude 대화 (내 Claude 계정)</td><td>꿈 내용, 기분, 요즘의 일, 별자리 차트, 최근 꿈 제목·키워드</td></tr>
+      <tr><td>[🔍 부엉 탐정에게 맡기기] (API 키를 넣었을 때)</td><td>Anthropic 의 Claude API (내 API 키로)</td><td>위와 같아요</td></tr>
+      <tr><td>🔄 자동 동기화 (켰을 때)</td><td>내 깃허브 <b>비공개</b> 저장소</td><td>꿈 일기 전체, 단 <b>내 동기화 비밀번호로 잠가서(암호화)</b> 보내요. 깃허브도 내용을 읽을 수 없어요.</td></tr>
+      <tr><td>💬 의견 보내기 · 🚩 풀이가 이상해요</td><td>내가 고른 곳 (카톡 등)</td><td>빌드 번호, 기기 종류, 내가 적은 의견 (꿈 내용은 넣지 않아요)</td></tr>
+    </table>
+    <ul>
+      <li><b>✍️ 나의 메모</b>는 Claude 에게 보내지 않아요.</li>
+      <li>Claude 로 보낸 내용은 Anthropic 의 개인정보 처리방침을 따라요: <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">anthropic.com/legal/privacy</a></li>
+      <li>광고, 방문자 통계, 다른 회사의 추적 도구는 쓰지 않아요.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>🔑 API 키 · 깃허브 열쇠</h2>
+    <ul>
+      <li>넣은 기기의 브라우저 안에만 저장되고, 📤 내보내기 파일에도 들어가지 않아요.</li>
+      <li>휴대폰을 잃어버리면 Claude 콘솔(platform.claude.com)과 깃허브 설정에서 그 키·열쇠를 <b>삭제</b>하세요.</li>
+      <li>다른 사람에게 내 키를 빌려주지 마세요. 그 사람의 사용 요금이 내게 나가요.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>🌙 꼭 알아 주세요</h2>
+    <ul>
+      <li>꿈 풀이는 마음을 비추는 거울일 뿐, <b>예언이나 진단·치료가 아니에요.</b></li>
+      <li>마음이 많이 힘들 땐 혼자 견디지 말고 이야기해 주세요: <b>자살예방상담 109</b>, <b>정신건강위기상담 1577-0199</b> (24시간)</li>
+      <li>궁금한 점은 앱을 알려 준 사람에게, 또는 ⚙️ 설정 → 💬 의견 보내기로 알려 주세요.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
