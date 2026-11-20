@@ -9,6 +9,7 @@ import {
 export const MAX_DREAM_CHARS = 20000;
 export const MAX_REPORT_CHARS = 60000; // 붙여 넣는 수사 보고서
 export const PATTERN_LIMIT = 40; // 종합 분석에 보내는 최근 꿈 수
+export const MAX_MEMO_CHARS = 10000; // 꿈마다 적는 나의 메모
 export const EXPORT_APP = 'dreamingU';
 
 export class RequestError extends Error {
@@ -80,11 +81,26 @@ function cleanImportedDream(d) {
     skyAnalysis: str(d.skyAnalysis, MAX_REPORT_CHARS),
     ...(d.analyzedAt ? { analyzedAt: str(d.analyzedAt, 40) } : {}),
     ...(d.analyzedVia ? { analyzedVia: str(d.analyzedVia, 10) } : {}),
+    ...(d.memoAt ? { memo: str(d.memo, MAX_MEMO_CHARS), memoAt: str(d.memoAt, 40) } : {}),
   };
 }
 
-// 마지막으로 손댄 때 (분석한 때, 없으면 기록한 때)
-const touchedAt = (d) => d.analyzedAt || d.recordedAt || '';
+// 같은 꿈을 합칠 때: 분석과 메모를 따로 비교해서 각각 더 최근 것을 남김
+// (예: 휴대폰에서 쓴 메모 + 컴퓨터에서 다시 한 분석 → 둘 다 남음). 바뀐 게 있으면 true
+const ANALYSIS_FIELDS = ['analysis', 'skyAnalysis', 'title', 'keywords', 'analyzedAt', 'analyzedVia'];
+function mergeDream(mine, theirs) {
+  let changed = false;
+  if ((theirs.analyzedAt || '') > (mine.analyzedAt || '')) {
+    for (const f of ANALYSIS_FIELDS) mine[f] = theirs[f];
+    changed = true;
+  }
+  if ((theirs.memoAt || '') > (mine.memoAt || '')) {
+    mine.memo = theirs.memo;
+    mine.memoAt = theirs.memoAt;
+    changed = true;
+  }
+  return changed;
+}
 
 /**
  * @param {object} o
@@ -189,7 +205,7 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
       return { json: { dream } };
     }
 
-    const m = /^\/api\/dreams\/([\w-]+)(\/analyze|\/prompt|\/report)?$/.exec(pathname);
+    const m = /^\/api\/dreams\/([\w-]+)(\/analyze|\/prompt|\/report|\/memo)?$/.exec(pathname);
 
     // claude.ai 에 붙여 넣을 글 (API 키 없어도 됨)
     if (m && method === 'GET' && m[2] === '/prompt') {
@@ -204,6 +220,17 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
       if (parseReport(text).psych.length < 30) throw new RequestError('수사 보고서가 아닌 것 같아요. Claude 의 답 전체를 복사해서 붙여 넣어 주세요.');
       await saveReport(dream, text, 'paste');
       return { json: { dream } };
+    }
+
+    // 나의 메모 (분석이 끝난 뒤 떠오른 생각 등). Claude 에게는 보내지 않음
+    if (m && method === 'POST' && m[2] === '/memo') {
+      const dream = findDream(m[1]);
+      const memo = String(body.memo ?? '');
+      if (memo.length > MAX_MEMO_CHARS) throw new RequestError(`메모가 너무 길어요 (최대 ${MAX_MEMO_CHARS.toLocaleString()}자).`);
+      dream.memo = memo;
+      dream.memoAt = new Date().toISOString();
+      await store.saveDreams(dreams);
+      return { json: { memo: dream.memo, memoAt: dream.memoAt } };
     }
 
     if (m && method === 'DELETE' && !m[2]) {
@@ -260,7 +287,7 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
         const d = cleanImportedDream(raw);
         if (!d) { skipped++; continue; }
         const mine = byId.get(d.id);
-        if (!mine) { byId.set(d.id, d); added++; } else if (touchedAt(d) > touchedAt(mine)) { byId.set(d.id, d); updated++; }
+        if (!mine) { byId.set(d.id, d); added++; } else if (mergeDream(mine, d)) { updated++; }
       }
       dreams = [...byId.values()];
       sortDreams();

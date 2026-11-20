@@ -174,6 +174,45 @@ test('export and import move the dream diary between computer and phone', async 
   });
 });
 
+test('my memo is saved per dream, kept when re-analyzed, never sent to Claude, merged on import', async () => {
+  let asked;
+  const ask = async (args) => { asked = args; return '<분석심리학>\n## 🔍 꿈 한눈에 보기\n하늘을 나는 꿈은 자유로워지고 싶은 마음일 수 있어요.\n</분석심리학>'; };
+  await withServer({ ask, env: { ANTHROPIC_API_KEY: 'sk-ant-env-key-123456' } }, async (pc) => {
+    const { dream } = await (await json(pc, '/api/dreams', DREAM)).json();
+    const saved = await (await json(pc, `/api/dreams/${dream.id}/memo`, { memo: '요즘 이사 준비로 마음이 들떠 있다.' })).json();
+    assert.equal(saved.memo, '요즘 이사 준비로 마음이 들떠 있다.');
+    assert.ok(saved.memoAt);
+    assert.equal((await json(pc, `/api/dreams/${dream.id}/memo`, { memo: 'x'.repeat(10001) })).status, 400);
+    assert.equal((await json(pc, '/api/dreams/nope/memo', { memo: 'a' })).status, 404);
+
+    await (await json(pc, `/api/dreams/${dream.id}/analyze`, {})).text();
+    assert.ok(!asked.prompt.includes('이사 준비로 마음이 들떠'), '메모는 Claude 에게 보내지 않음');
+    let { dreams } = await (await fetch(`${pc}/api/dreams`)).json();
+    assert.equal(dreams[0].memo, '요즘 이사 준비로 마음이 들떠 있다.', '다시 분석해도 메모는 그대로');
+    assert.ok(dreams[0].analysis);
+    const pcExport = await (await fetch(`${pc}/api/export`)).json();
+    assert.equal(pcExport.dreams[0].memo, '요즘 이사 준비로 마음이 들떠 있다.');
+
+    await withServer({}, async (phone) => {
+      // 휴대폰: 컴퓨터 일기를 가져와서 메모를 고침
+      await json(phone, '/api/import', { data: pcExport });
+      await new Promise((r) => setTimeout(r, 5));
+      await json(phone, `/api/dreams/${dream.id}/memo`, { memo: '휴대폰에서 고친 메모' });
+      const phoneExport = await (await fetch(`${phone}/api/export`)).json();
+      // 그동안 컴퓨터는 다시 분석
+      await new Promise((r) => setTimeout(r, 5));
+      await (await json(pc, `/api/dreams/${dream.id}/analyze`, {})).text();
+      // 컴퓨터가 휴대폰 일기를 가져오면: 메모는 휴대폰 것, 분석은 컴퓨터의 새 분석이 남아야 함
+      const before = (await (await fetch(`${pc}/api/dreams`)).json()).dreams[0];
+      const r = await (await json(pc, '/api/import', { data: phoneExport })).json();
+      assert.equal(r.updated, 1);
+      ({ dreams } = await (await fetch(`${pc}/api/dreams`)).json());
+      assert.equal(dreams[0].memo, '휴대폰에서 고친 메모');
+      assert.equal(dreams[0].analyzedAt, before.analyzedAt, '컴퓨터의 더 새 분석은 그대로');
+    });
+  });
+});
+
 test('unknown features explain how to restart, and shutdown asks the app to close', async () => {
   let closed = 0;
   await withServer({ onShutdown: () => { closed++; } }, async (base) => {

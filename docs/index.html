@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="꿈탐정">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>꿈탐정 부엉</title>
-<link rel="icon" href="./icon.png?v=2.0">
-<link rel="apple-touch-icon" href="./icon-180.png?v=2.0">
+<link rel="icon" href="./icon.png?v=2.1">
+<link rel="apple-touch-icon" href="./icon-180.png?v=2.1">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
@@ -105,6 +105,7 @@
   .paste-card ol { padding-left: 20px; margin: 6px 0 10px; font-size: 14px; }
   .paste-card textarea { min-height: 160px; }
   .warn { border-color: var(--red); color: var(--text); background: #3a1830; }
+  .memo-card textarea { min-height: 140px; }
   .analysis { font-size: 15px; }
   .analysis h3 { color: var(--gold2); font-size: 16px; margin: 18px 0 6px; }
   .analysis h3:first-child { margin-top: 0; }
@@ -140,7 +141,7 @@
 <body>
 <div class="app">
   <header>
-    <img src="./icon.png?v=2.0" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <img src="./icon.png?v=2.1" alt="부엉" id="owl" title="부엉을 눌러 보세요">
     <h1>꿈탐정 부엉 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
@@ -732,7 +733,7 @@ async function loadDreams() {
   $('diary-list').innerHTML = dreams.length ? dreams.map((d) => {
     const moon = d.chart.planets.find((p) => p.key === 'moon');
     return `<button class="dream" data-id="${d.id}">
-      <div class="date">${fmtDate(d)} · ${d.chart.moonPhase.emoji} 달 ${moon.sign.name}</div>
+      <div class="date">${fmtDate(d)} · ${d.chart.moonPhase.emoji} 달 ${moon.sign.name}${d.memo?.trim() ? ' · 📝 메모' : ''}</div>
       <div class="title">${esc(d.title || (d.analysis ? '이름 없는 사건' : '🕒 아직 수사 전'))}</div>
       <div class="preview">${esc(d.text)}</div>
       <div class="tags">${(d.keywords || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}${(d.moods || []).map((k) => `<span class="tag">${esc(k)}</span>`).join('')}</div>
@@ -770,7 +771,14 @@ function openDream(id) {
       <div class="card"><h2>✨ 꿈꾼 순간의 하늘</h2>${chartBlock(d.chart)}</div>
     </div>
     <h2 class="report-title">🕵️ 부엉의 수사 보고서</h2>
-    <div id="detail-body">${d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '<div class="card"><p class="hint">아직 분석 전이에요. [🔍 부엉에게 맡기기]나 [📋 Claude에게 물어볼 글 복사]를 눌러 주세요.</p></div>'}</div>`;
+    <div id="detail-body">${d.analysis ? reportHtml({ psych: d.analysis, sky: d.skyAnalysis || '' }) : '<div class="card"><p class="hint">아직 분석 전이에요. [🔍 부엉에게 맡기기]나 [📋 Claude에게 물어볼 글 복사]를 눌러 주세요.</p></div>'}</div>
+    <div class="card memo-card">
+      <h2>✍️ 나의 메모</h2>
+      <p class="hint">분석을 읽고 떠오른 생각, 요즘 일과 이어지는 점, 나중에 다시 떠오른 꿈 장면을 적어 두세요. 적으면 <b>저절로 저장</b>돼요. (나만 보는 메모라 Claude 에게는 보내지 않아요)</p>
+      <textarea id="memo" placeholder="예) 끝없는 계단은 요즘 이사 준비로 마음이 바쁜 것과 닮은 것 같다.">${esc(d.memo || '')}</textarea>
+      <div class="hint" id="memo-state">${d.memoAt ? `저장됨 · ${fmtTime(d.memoAt)}` : ''}</div>
+    </div>`;
+  wireMemo(d);
   $('back').onclick = closeDream;
   $('del').onclick = async () => {
     if (!confirm('이 꿈 기록을 지울까요? 지우면 되돌릴 수 없어요.')) return;
@@ -788,6 +796,7 @@ function openDream(id) {
     } catch (err) { showMsg($('detail-msg'), err.message, 'err'); }
   };
   $('reanalyze').onclick = async () => {
+    await flushMemo();
     const btn = $('reanalyze');
     btn.disabled = true;
     showMsg($('detail-msg'), '');
@@ -803,7 +812,50 @@ function openDream(id) {
   };
   window.scrollTo({ top: 0 });
 }
-function closeDream() { $('diary-detail').hidden = true; $('diary-detail').innerHTML = ''; $('diary-list-card').hidden = false; }
+function closeDream() {
+  const wasOpen = !$('diary-detail').hidden;
+  $('diary-detail').hidden = true; $('diary-detail').innerHTML = ''; $('diary-list-card').hidden = false;
+  // 메모를 저장한 다음 목록을 새로 그림 (📝 표시가 바로 보이게)
+  if (wasOpen) flushMemo().then(() => loadDreams()).catch(() => {});
+}
+
+// ---------- 나의 메모: 적으면 잠시 뒤 저절로 저장, 화면을 떠날 때도 바로 저장 ----------
+const fmtTime = (iso) => new Date(iso).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+let memoPending = null; // { dream, timer }
+
+async function flushMemo() {
+  if (!memoPending) return;
+  const { dream, timer } = memoPending;
+  memoPending = null;
+  clearTimeout(timer);
+  const box = $('memo');
+  const memo = box && box.dataset.id === dream.id ? box.value : dream.memoDraft;
+  try {
+    const saved = await api(`/api/dreams/${dream.id}/memo`, { method: 'POST', body: JSON.stringify({ memo }) });
+    Object.assign(dream, saved);
+    delete dream.memoDraft;
+    if ($('memo')?.dataset.id === dream.id) $('memo-state').textContent = `저장됨 · ${fmtTime(saved.memoAt)}`;
+  } catch (err) {
+    if ($('memo')?.dataset.id === dream.id) { $('memo-state').textContent = `저장하지 못했어요: ${err.message}`; $('memo-state').className = 'msg err'; }
+  }
+}
+
+function wireMemo(dream) {
+  const box = $('memo');
+  box.dataset.id = dream.id;
+  box.oninput = () => {
+    if (memoPending && memoPending.dream !== dream) flushMemo();
+    clearTimeout(memoPending?.timer);
+    dream.memoDraft = box.value;
+    memoPending = { dream, timer: setTimeout(flushMemo, 800) };
+    $('memo-state').className = 'hint';
+    $('memo-state').textContent = '쓰는 중…';
+  };
+  box.onblur = () => flushMemo();
+}
+// 휴대폰에서 다른 앱으로 넘어가거나 창을 닫을 때도 저장
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushMemo(); });
+window.addEventListener('pagehide', () => { flushMemo(); });
 
 // ---------- 꿈 패턴 탭 ----------
 function bars(list, empty) {
@@ -952,6 +1004,7 @@ $('save-place').onclick = async () => {
 document.querySelector('nav').onclick = async (e) => {
   const b = e.target.closest('button');
   if (!b) return;
+  await flushMemo();
   document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('on', x === b));
   for (const t of ['write', 'diary', 'pattern', 'settings']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
   if (b.dataset.tab === 'diary') { closeDream(); await loadDreams(); }
