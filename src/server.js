@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 꿈탐정 컴퓨터 버전: 이 컴퓨터에서만 열리는 작은 서버. 화면은 docs 폴더(휴대폰 버전과 같은 화면),
+// 꿈꾸는부엉이 컴퓨터 버전: 이 컴퓨터에서만 열리는 작은 서버. 화면은 docs 폴더(휴대폰 버전과 같은 화면),
 // 꿈 일기는 data 폴더에 저장. 꿈 저장·분석 같은 두뇌는 docs/js/app.js 를 휴대폰 버전과 함께 씀.
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -93,7 +93,7 @@ export async function createServer({ dataDir = path.join(ROOT, 'data'), ask = as
         return res.end(data);
       }
 
-      // 새 버전이 켜질 때 예전 꿈탐정을 끄라고 부탁함 (1.9부터)
+      // 새 버전이 켜질 때 예전 꿈꾸는부엉이를 끄라고 부탁함 (1.9부터)
       if (req.method === 'POST' && url.pathname === '/api/shutdown') {
         await readJson(req);
         sendJson(res, 200, { ok: true, build: BUILD });
@@ -136,7 +136,7 @@ function openBrowser(address) {
 // 이미 3100번에 무언가 켜져 있을 때: 같은 빌드면 그 화면을 열고, 예전 빌드면 끄고 새 버전으로 바꿔 켬
 async function takeOver(address) {
   let running = null;
-  try { running = await (await fetch(`${address}/api/status`)).json(); } catch { /* 꿈탐정이 아님 */ }
+  try { running = await (await fetch(`${address}/api/status`)).json(); } catch { /* 꿈꾸는부엉이가 아님 */ }
   if (!running?.build) return { action: 'foreign' };
   if (running.build === BUILD) return { action: 'same' };
   try {
@@ -151,37 +151,37 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const host = '127.0.0.1'; // 이 컴퓨터에서만 열림 (꿈은 개인적인 기록이니까)
   const address = `http://${host}:${port}`;
   let server;
-  server = await createServer({ onShutdown: () => { console.log('새 버전 꿈탐정이 켜져서 이 창은 닫혀요.'); server.close(); process.exit(0); } });
+  server = await createServer({ onShutdown: () => { console.log('새 버전 꿈꾸는부엉이가 켜져서 이 창은 닫혀요.'); server.close(); process.exit(0); } });
   let retried = false;
   server.once('listening', () => {
-    console.log(`꿈탐정 부엉 (빌드 ${BUILD}) 실행 중: ${address}`);
-    console.log('이 창을 닫으면 꿈탐정도 꺼집니다.');
+    console.log(`꿈꾸는부엉이 (빌드 ${BUILD}) 실행 중: ${address}`);
+    console.log('이 창을 닫으면 꿈꾸는부엉이도 꺼집니다.');
     openBrowser(address);
   });
   const listen = () => server.listen(port, host);
   server.on('error', async (err) => {
     if (err.code !== 'EADDRINUSE' || retried) {
-      if (err.code === 'EADDRINUSE') console.log('예전 꿈탐정이 아직 꺼지지 않았어요. 잠시 뒤 부엉 아이콘을 다시 눌러 주세요.');
+      if (err.code === 'EADDRINUSE') console.log('예전 꿈꾸는부엉이가 아직 꺼지지 않았어요. 잠시 뒤 부엉 아이콘을 다시 눌러 주세요.');
       else console.error(err);
       process.exit(1);
     }
     const result = await takeOver(address);
     if (result.action === 'same') {
-      console.log(`꿈탐정이 이미 켜져 있어요. 브라우저에서 ${address} 를 열어 주세요.`);
+      console.log(`꿈꾸는부엉이가 이미 켜져 있어요. 브라우저에서 ${address} 를 열어 주세요.`);
       openBrowser(address);
       setTimeout(() => process.exit(0), 1500);
     } else if (result.action === 'replaced') {
-      console.log(`예전 꿈탐정(빌드 ${result.old})을 끄고 새 버전(빌드 ${BUILD})으로 켤게요…`);
+      console.log(`예전 꿈꾸는부엉이(빌드 ${result.old})을 끄고 새 버전(빌드 ${BUILD})으로 켤게요…`);
       retried = true;
       setTimeout(listen, 1000);
     } else if (result.action === 'old') {
-      console.log(`예전 꿈탐정(빌드 ${result.old})이 아직 켜져 있어요.`);
-      console.log('작업 표시줄에서 예전 꿈탐정의 검은 창을 찾아 닫은 뒤, 부엉 아이콘을 다시 눌러 주세요.');
+      console.log(`예전 꿈꾸는부엉이(빌드 ${result.old})이 아직 켜져 있어요.`);
+      console.log('작업 표시줄에서 예전 꿈꾸는부엉이의 검은 창을 찾아 닫은 뒤, 부엉 아이콘을 다시 눌러 주세요.');
       console.log('(창을 못 찾겠으면 컴퓨터를 다시 시작해도 돼요)');
       openBrowser(address); // 같은 폴더에 덮어썼다면 화면 위쪽에도 안내가 보임
       setTimeout(() => process.exit(1), 1500);
     } else {
-      console.log(`${port}번 주소를 다른 프로그램이 쓰고 있어요. 컴퓨터를 다시 시작한 뒤 꿈탐정을 켜 주세요.`);
+      console.log(`${port}번 주소를 다른 프로그램이 쓰고 있어요. 컴퓨터를 다시 시작한 뒤 꿈꾸는부엉이를 켜 주세요.`);
       process.exit(1);
     }
   });

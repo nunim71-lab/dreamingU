@@ -1,4 +1,4 @@
-// 꿈탐정의 두뇌: 꿈 저장·분석·꿈 일기·종합 분석·내보내기/가져오기
+// 꿈꾸는부엉이의 두뇌: 꿈 저장·분석·꿈 일기·종합 분석·내보내기/가져오기
 // 컴퓨터 버전(src/server.js, data 폴더에 저장)과 휴대폰 버전(js/local.js, 휴대폰 안에 저장)이 똑같이 씀.
 import { computeChart, localToDate } from './astro.js';
 import {
@@ -277,7 +277,7 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
     if (method === 'POST' && pathname === '/api/import') {
       const data = body?.data;
       if (!data || data.app !== EXPORT_APP || !Array.isArray(data.dreams)) {
-        throw new RequestError('꿈탐정에서 내보낸 꿈 일기 파일이 아니에요. "dreamingU-diary-날짜.json" 파일을 골라 주세요.');
+        throw new RequestError('꿈꾸는부엉이에서 내보낸 꿈 일기 파일이 아니에요. "dreamingU-diary-날짜.json" 파일을 골라 주세요.');
       }
       let added = 0;
       let updated = 0;
@@ -301,7 +301,7 @@ export async function createApp({ store, ask = askClaude, envKey = '', build, mo
     }
 
     if (pathname.startsWith('/api/')) {
-      throw new RequestError('이 기능을 찾지 못했어요. 꿈탐정을 새 버전으로 바꿨다면, 작업 표시줄의 꿈탐정 검은 창을 닫고 부엉 아이콘으로 다시 켜 주세요.', 404);
+      throw new RequestError('이 기능을 찾지 못했어요. 꿈꾸는부엉이를 새 버전으로 바꿨다면, 작업 표시줄의 꿈꾸는부엉이 검은 창을 닫고 부엉 아이콘으로 다시 켜 주세요.', 404);
     }
     throw new RequestError('없는 페이지입니다.', 404);
   }

@@ -1,4 +1,4 @@
-# 꿈탐정 부엉 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico docs/icon.png
+# 꿈꾸는부엉이 아이콘 다시 그리기 (개발용, Pillow 필요): python3 tools/make-icon.py tools/icon.ico docs/icon.png
 # docs 폴더에 휴대폰 홈 화면용 icon-180/192/512.png 도 함께 만듦
 # 밤하늘 앞의 신비로운 하얀 부엉이: 황금 망토, 은빛 깃털, 금빛으로 빛나는 눈, 이마의 작은 별, 뒤에는 초승달과 별빛.
 # 흰 스티커 테두리로 어떤 바탕화면에서도 잘 보이게 함.

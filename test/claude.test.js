@@ -18,11 +18,11 @@ test('streams text pieces and sends the expected request', async () => {
   const pieces = [];
   const fetchImpl = async (url, init) => {
     sent = { url, init, body: JSON.parse(init.body) };
-    return new Response(sse([{ type: 'message_start' }, delta('안녕'), delta('하세요 '), delta('꿈탐정'), { type: 'message_delta', delta: { stop_reason: 'end_turn' } }, { type: 'message_stop' }]), { status: 200 });
+    return new Response(sse([{ type: 'message_start' }, delta('안녕'), delta('하세요 '), delta('꿈꾸는부엉이'), { type: 'message_delta', delta: { stop_reason: 'end_turn' } }, { type: 'message_stop' }]), { status: 200 });
   };
   const text = await askClaude({ apiKey: 'sk-ant-test', system: 'S', prompt: 'P', fetchImpl, onText: (t) => pieces.push(t) });
-  assert.equal(text, '안녕하세요 꿈탐정');
-  assert.deepEqual(pieces, ['안녕', '하세요 ', '꿈탐정']);
+  assert.equal(text, '안녕하세요 꿈꾸는부엉이');
+  assert.deepEqual(pieces, ['안녕', '하세요 ', '꿈꾸는부엉이']);
   assert.equal(sent.url, 'https://api.anthropic.com/v1/messages');
   assert.equal(sent.init.headers['x-api-key'], 'sk-ant-test');
   assert.equal(sent.body.model, 'claude-opus-5-5');
@@ -90,7 +90,7 @@ test('paste prompt asks for 【】 markers instead of tags', async () => {
   const text = buildPastePrompt({ id: 'a', text: '고래를 탔어요', moods: [], dreamAtLocal: '2026-11-10T07:30', tzOffset: 9, chart });
   assert.doesNotMatch(text, /<\/?(분석심리학|천궁도|제목|키워드)>/);
   for (const mark of ['【분석심리학】', '【천궁도】', '【제목】', '【키워드】']) assert.ok(text.includes(mark), mark);
-  assert.match(text, /꿈탐정 부엉/);
+  assert.match(text, /꿈꾸는부엉이/);
   assert.match(text, /고래를 탔어요/);
   assert.match(text, /- 달: /);
 });

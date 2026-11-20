@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#0d1029">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="꿈탐정">
+<meta name="apple-mobile-web-app-title" content="꿈꾸는부엉이">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>꿈탐정 부엉</title>
-<link rel="icon" href="./icon.png?v=2.1">
-<link rel="apple-touch-icon" href="./icon-180.png?v=2.1">
+<title>꿈꾸는부엉이</title>
+<link rel="icon" href="./icon.png?v=2.2">
+<link rel="apple-touch-icon" href="./icon-180.png?v=2.2">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
@@ -141,8 +141,8 @@
 <body>
 <div class="app">
   <header>
-    <img src="./icon.png?v=2.1" alt="부엉" id="owl" title="부엉을 눌러 보세요">
-    <h1>꿈탐정 부엉 <small id="build"></small></h1>
+    <img src="./icon.png?v=2.2" alt="부엉" id="owl" title="부엉을 눌러 보세요">
+    <h1>꿈꾸는부엉이 <small id="build"></small></h1>
     <div class="bubble" id="bubble">어젯밤 꿈, 아직 기억나실 때 들려주세요. 🌙</div>
   </header>
 
@@ -253,7 +253,7 @@
         <li>왼쪽 메뉴 <b>Billing</b> 에서 크레딧 충전 (꿈 분석 1번에 대략 100~200원, 5달러면 꿈 40개쯤).<br>💡 Claude <b>Max·Ultra·Team</b> 구독이면 매달 API 크레딧이 함께 나와요. claude.ai 의 설정 → 결제에서 이 Console 계정을 연결하면 <b>Promotional credits</b> 에 들어와서 충전하지 않아도 돼요.</li>
         <li><b>API Keys</b> → <b>Create Key</b> → 나온 키를 복사해서 위 칸에 붙여 넣고 저장</li>
       </ol>
-      <p class="hint" id="storage-hint">키와 꿈 일기는 이 컴퓨터의 꿈탐정 폴더 안 <code>data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
+      <p class="hint" id="storage-hint">키와 꿈 일기는 이 컴퓨터의 꿈꾸는부엉이 폴더 안 <code>data</code> 폴더에만 저장돼요. 분석할 때만 꿈 내용이 Claude 로 보내져요.</p>
       <p class="hint" id="model-line"></p>
     </div>
     <div class="card">
@@ -292,7 +292,7 @@ import { parseReport } from './js/report.js';
 
 // 이 화면의 빌드 번호 (아이콘 주소의 ?v=…)
 const PAGE_BUILD = new URL(document.querySelector('link[rel=icon]').href).searchParams.get('v');
-// 컴퓨터 버전(꿈탐정 프로그램이 켜져 있음)이면 null, 휴대폰·브라우저 버전이면 화면 안의 두뇌
+// 컴퓨터 버전(꿈꾸는부엉이 프로그램이 켜져 있음)이면 null, 휴대폰·브라우저 버전이면 화면 안의 두뇌
 let backend = null;
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -926,10 +926,10 @@ function applyKeyMode() {
 async function loadStatus() {
   status = await api('/api/status');
   applyKeyMode();
-  // (컴퓨터 버전) 화면은 새것인데 꿈탐정 프로그램은 예전 것으로 켜져 있으면 알려 줌
+  // (컴퓨터 버전) 화면은 새것인데 꿈꾸는부엉이 프로그램은 예전 것으로 켜져 있으면 알려 줌
   if (!backend && PAGE_BUILD && status.build !== PAGE_BUILD) {
     $('version-warn').hidden = false;
-    $('version-warn').innerHTML = `⚠️ <b>꿈탐정을 다시 켜 주세요.</b> 화면은 새 버전(빌드 ${esc(PAGE_BUILD)})인데, 꿈탐정 프로그램은 예전 버전(빌드 ${esc(status.build)})으로 켜져 있어요.<br>작업 표시줄의 꿈탐정 <b>검은 창을 닫고</b>, 바탕화면의 <b>부엉 아이콘</b>을 다시 눌러 주세요. 그러기 전에는 일부 버튼이 "찾지 못했어요" 라고 나올 수 있어요.`;
+    $('version-warn').innerHTML = `⚠️ <b>꿈꾸는부엉이를 다시 켜 주세요.</b> 화면은 새 버전(빌드 ${esc(PAGE_BUILD)})인데, 꿈꾸는부엉이 프로그램은 예전 버전(빌드 ${esc(status.build)})으로 켜져 있어요.<br>작업 표시줄의 꿈꾸는부엉이 <b>검은 창을 닫고</b>, 바탕화면의 <b>부엉 아이콘</b>을 다시 눌러 주세요. 그러기 전에는 일부 버튼이 "찾지 못했어요" 라고 나올 수 있어요.`;
   }
   $('build').textContent = `빌드 ${status.build}`;
   $('key-state').textContent = status.hasKey
@@ -975,7 +975,7 @@ $('import-file').onchange = async () => {
   if (!file) return;
   try {
     let data;
-    try { data = JSON.parse(await file.text()); } catch { throw new Error('꿈탐정에서 내보낸 꿈 일기 파일이 아니에요.'); }
+    try { data = JSON.parse(await file.text()); } catch { throw new Error('꿈꾸는부엉이에서 내보낸 꿈 일기 파일이 아니에요.'); }
     const r = await api('/api/import', { method: 'POST', body: JSON.stringify({ data }) });
     showMsg($('move-msg'), `가져왔어요! 새 꿈 ${r.added}개, 새로 바뀐 꿈 ${r.updated}개${r.skipped ? `, 읽지 못한 꿈 ${r.skipped}개` : ''}. 지금 꿈 일기는 모두 ${r.total}개예요.`, 'ok');
     await loadDreams();
@@ -1012,9 +1012,9 @@ document.querySelector('nav').onclick = async (e) => {
 };
 
 // ---------- 시작 ----------
-// 꿈탐정 프로그램(컴퓨터 버전)이 켜져 있으면 그쪽에 저장, 아니면(휴대폰·인터넷 주소) 이 브라우저 안에 저장
+// 꿈꾸는부엉이 프로그램(컴퓨터 버전)이 켜져 있으면 그쪽에 저장, 아니면(휴대폰·인터넷 주소) 이 브라우저 안에 저장
 async function isServerMode() {
-  if (location.protocol === 'https:') return false; // 인터넷 주소(휴대폰 버전)엔 꿈탐정 프로그램이 없음
+  if (location.protocol === 'https:') return false; // 인터넷 주소(휴대폰 버전)엔 꿈꾸는부엉이 프로그램이 없음
   try {
     const res = await fetch('./api/status', { cache: 'no-store' });
     return res.ok && (res.headers.get('content-type') || '').includes('application/json');
@@ -1037,7 +1037,7 @@ try {
   await loadDreams();
   if (!status.hasKey) say('처음 오셨군요! 꿈을 적고 [📋 글 복사]를 누르면 Claude 구독으로 수사해 드려요. 🦉');
 } catch (err) {
-  say(backend ? `문제가 생겼어요: ${err.message}` : '서버와 연결이 안 돼요. 검은 창(꿈탐정)이 켜져 있는지 확인해 주세요.');
+  say(backend ? `문제가 생겼어요: ${err.message}` : '서버와 연결이 안 돼요. 검은 창(꿈꾸는부엉이)이 켜져 있는지 확인해 주세요.');
 }
 </script>
 </body>
